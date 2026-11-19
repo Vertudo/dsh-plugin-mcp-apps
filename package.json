@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-mcp-apps",
-  "version": "0.5.7",
-  "description": "MCP-подключения: панель управления MCP-серверами (HTTP/SSE/stdio, авторизация токеном или OAuth 2.0, импорт servers.json). Форк dsh-plugin-mcp-apps с русским интерфейсом.",
+  "version": "0.6.0",
+  "description": "MCP-подключения: панель управления MCP-серверами (HTTP/SSE/stdio, авторизация токеном или OAuth 2.0, импорт servers.json). Форк dsh-plugin-mcp-apps с модульной локализацией: ru, en, zh.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -21,11 +21,20 @@
     "lib/auth.js",
     "lib/client.js",
     "lib/index.js",
+    "lib/locales.js",
     "lib/oauth.js",
+    "src/client.js",
+    "src/i18n.js",
+    "scripts/build-client.mjs",
+    "scripts/check-artifacts.mjs",
+    "scripts/check-i18n.mjs",
     "scripts/install-remote.sh"
   ],
   "license": "MIT",
-  "author": "xiaoqin422",
+  "author": "Vertudo",
+  "contributors": [
+    "xiaoqin422 (upstream author of dsh-plugin-mcp-apps)"
+  ],
   "keywords": [
     "connector",
     "dsh",
@@ -39,10 +48,15 @@
   "engines": {
     "node": ">=20"
   },
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "check": "npm run i18n:check && npm run build && node scripts/check-artifacts.mjs"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.5",
-    "react": "^18.2.0",
-    "@modelcontextprotocol/client": "^2.2.0"
+    "@modelcontextprotocol/client": "^2.2.0",
+    "react": "^18.2.0"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
@@ -62,7 +76,8 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-ui-tool",
-        "@deepseek-ai/dsh-client-ui-sidebar-right"
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-locale"
       ],
       "platform": "web"
     },
@@ -74,13 +89,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xiaoqin422/dsh-plugin-mcp-apps.git"
+    "url": "git+https://github.com/Vertudo/dsh-plugin-mcp-apps.git"
   },
-  "homepage": "https://github.com/xiaoqin422/dsh-plugin-mcp-apps#readme",
+  "homepage": "https://github.com/Vertudo/dsh-plugin-mcp-apps#readme",
   "bugs": {
-    "url": "https://github.com/xiaoqin422/dsh-plugin-mcp-apps/issues"
+    "url": "https://github.com/Vertudo/dsh-plugin-mcp-apps/issues"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

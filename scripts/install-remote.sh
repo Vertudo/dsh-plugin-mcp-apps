@@ -3,8 +3,8 @@
 #
 #   sh scripts/install-remote.sh                            # npm, profile web
 #   sh scripts/install-remote.sh dsh-plugin-mcp-apps web
-#   sh scripts/install-remote.sh https://github.com/xiaoqin422/dsh-plugin-mcp-apps web
-#   sh scripts/install-remote.sh ./dsh-plugin-mcp-apps-0.5.6.tgz web
+#   sh scripts/install-remote.sh https://github.com/Vertudo/dsh-plugin-mcp-apps web
+#   sh scripts/install-remote.sh ./dsh-plugin-mcp-apps-0.6.0.tgz web
 #
 # Needs a DSH install (`dsh` on PATH). Does the same three things as
 # scripts/install.sh: pnpm add through the official forwarder, register the

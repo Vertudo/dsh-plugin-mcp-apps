@@ -1,0 +1,7 @@
+# Build artifacts and toolchain state.
+node_modules/
+dist/
+*.log
+
+# Local scratch output of the checks.
+.i18n-report.json

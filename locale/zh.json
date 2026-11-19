@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "MCP 连接器",
+    "description": "接入任意 MCP 服务器（HTTP/SSE/stdio），支持令牌或 OAuth 2.0 授权、启用与停用、导入 servers.json；带 ui:// 资源的工具会在右侧工作台渲染 MCP Apps。"
+  }
+}
