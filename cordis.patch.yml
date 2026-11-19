@@ -1,0 +1,9 @@
+# Bundle patch layer for dsh-plugin-mcp-apps.
+#
+# The profile loads this package's `main` as the host half (a plain Cordis
+# plugin: it only contributes the workbench system-prompt section), and the
+# `dsh.client` declaration in package.json makes the web app load `./client`
+# as the browser half (the renderer itself).
+- insert:
+    - id: dsh-plugin-mcp-apps
+      name: dsh-plugin-mcp-apps

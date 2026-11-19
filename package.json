@@ -1,0 +1,86 @@
+{
+  "name": "dsh-plugin-mcp-apps",
+  "version": "0.5.7",
+  "description": "MCP-подключения: панель управления MCP-серверами (HTTP/SSE/stdio, авторизация токеном или OAuth 2.0, импорт servers.json). Форк dsh-plugin-mcp-apps с русским интерфейсом.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "locale",
+    "cordis.patch.yml",
+    "lib/auth.js",
+    "lib/client.js",
+    "lib/index.js",
+    "lib/oauth.js",
+    "scripts/install-remote.sh"
+  ],
+  "license": "MIT",
+  "author": "xiaoqin422",
+  "keywords": [
+    "connector",
+    "dsh",
+    "dsh-plugin",
+    "mcp",
+    "mcp-apps",
+    "mcp-client",
+    "oauth",
+    "workbench"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "~4.0.5",
+    "react": "^18.2.0",
+    "@modelcontextprotocol/client": "^2.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "@modelcontextprotocol/client": {
+      "optional": true
+    }
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-tool",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ],
+      "platform": "web"
+    },
+    "compatibility": {
+      "dshReleases": {
+        "0.2.1-rc.2": "compatible"
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiaoqin422/dsh-plugin-mcp-apps.git"
+  },
+  "homepage": "https://github.com/xiaoqin422/dsh-plugin-mcp-apps#readme",
+  "bugs": {
+    "url": "https://github.com/xiaoqin422/dsh-plugin-mcp-apps/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
