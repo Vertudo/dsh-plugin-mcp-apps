@@ -6,6 +6,7 @@ A general MCP connector plus an MCP Apps workbench, forked from `xiaoqin422/dsh-
 - **Transports**: Streamable HTTP, SSE, stdio (local process).
 - **Authorization**: none; API parameters (`header` / `query` / `body`, any number per connection, values echoed as `••••` and kept when the field stays empty); OAuth 2.0 (authorization code + PKCE) with client registration by DCR, CIMD or a hand-entered `client_id`/`client_secret`.
 - **Workbench**: a tool that declares a `ui://` resource renders its MCP App in the right-hand pane; a disabled connection exposes no tools to the model.
+- **Reconnect** on a card re-reads the tool list (`POST /api/mcp-apps/connections/<id>/refresh`); a server that sends `notifications/tools/list_changed` updates it on its own, and a dropped connection reconnects with a growing delay. The model sees the refreshed list from its next message: the tool snapshot is taken when a turn starts.
 
 ## Localization
 
@@ -69,6 +70,14 @@ dsh plugin --profile web remove dsh-plugin-mcp-apps
 - `npm run check` — dictionary parity, bundle build, artifact gates.
 - `lib/auth.js` keeps auth injection separate, so `import { authFetch }` can be checked against a fake fetch for all three positions and for preserved headers; OAuth storage lives in `lib/oauth.js` (`RecordOAuthProvider`).
 - Client changes need a page reload (hard refresh when in doubt); host changes need a DSH restart.
+
+## Where connections live
+
+`$DSH_HOME/mcp-apps/connections.json`, by default `~/.dsh/mcp-apps/connections.json`, mode 0600. `GET /api/mcp-apps/state` reports the path together with `dshHome` and `homeSource` (`core`, `env` or `default` — which rule won), and the panel prints it.
+
+Earlier releases wrote to `/data` (on Windows that is `C:\data`), outside the harness home: the machine ended up with two stores, and the panel showed whichever one its host resolved. On the first start after this change the old file is imported — records merge by `id`, the `mcpstuxx` example is dropped, the original is renamed to `connections.json.bak`, and the import is recorded in `.legacy-store-imported`.
+
+The native MCP settings (`mcp-manager`) neither list nor restart these connections: it has its own config and its own servers.
 
 ## Limits
 

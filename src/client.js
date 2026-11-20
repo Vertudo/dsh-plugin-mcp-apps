@@ -218,8 +218,8 @@ const noteBox = {
 	whiteSpace: "pre-wrap",
 	wordBreak: "break-word"
 };
-const STATUS_COLORS = { ready: "#2f9e5f", connecting: "#d8a01a", error: "#d0453f", needs_auth: "#d8a01a", disabled: "rgba(127,127,127,.55)" };
-const STATUS_KEY = { ready: "card.status.ready", connecting: "card.status.connecting", error: "card.status.error", needs_auth: "card.status.needs_auth", disabled: "card.status.disabled" };
+const STATUS_COLORS = { ready: "#2f9e5f", connecting: "#d8a01a", refreshing: "#d8a01a", reconnecting: "#d8a01a", error: "#d0453f", needs_auth: "#d8a01a", disabled: "rgba(127,127,127,.55)" };
+const STATUS_KEY = { ready: "card.status.ready", connecting: "card.status.connecting", refreshing: "card.status.refreshing", reconnecting: "card.status.reconnecting", error: "card.status.error", needs_auth: "card.status.needs_auth", disabled: "card.status.disabled" };
 /** Localized status label; an unknown status shows raw rather than vanishing. */
 const statusText = (status) => (STATUS_KEY[status] ? tr(STATUS_KEY[status]) : status);
 //#endregion
@@ -536,9 +536,11 @@ function ConnectionCard(props) {
 	const connection = props.connection;
 	const [busy, setBusy] = React.useState("");
 	const [error, setError] = React.useState("");
+	const [note, setNote] = React.useState("");
 	const run = async (label, action) => {
 		setBusy(label);
 		setError("");
+		setNote("");
 		try {
 			await action();
 			await refreshState();
@@ -606,6 +608,7 @@ function ConnectionCard(props) {
 		),
 		connection.note ? h("div", { style: { ...subtitle, lineHeight: "18px" } }, connection.note) : null,
 		error ? h("div", { style: errorText }, error) : null,
+		note ? h("div", { style: noteBox }, note) : null,
 		error === "" && connection.status === "error" && connection.error ? h("div", { style: errorText }, connection.error) : null,
 		h(
 			"div",
@@ -629,6 +632,17 @@ function ConnectionCard(props) {
 				disabled: busy !== "",
 				onClick: () => run("test", () => api("/connections/" + encodeURIComponent(connection.id) + "/test", { method: "POST", body: "{}" }))
 			}, busy === "test" ? tr("common.testing") : tr("common.test")),
+			h("button", {
+				type: "button",
+				style: ghostButton,
+				title: tr("card.refresh.hint"),
+				disabled: busy !== "" || !connection.enabled,
+				onClick: () =>
+					run("refresh", async () => {
+						await api("/connections/" + encodeURIComponent(connection.id) + "/refresh", { method: "POST", body: "{}" });
+						setNote(tr("card.refresh.hint"));
+					})
+			}, busy === "refresh" ? tr("common.processing") : tr("card.refresh")),
 			oauthMode
 				? h("button", { type: "button", style: authorized ? ghostButton : buttonStyle, disabled: busy !== "", onClick: authorize }, busy === "auth" ? tr("card.auth.waiting") : authorized ? tr("card.auth.reauthorize") : tr("card.auth.login"))
 				: null,
