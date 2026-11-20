@@ -8,6 +8,19 @@ A general MCP connector plus an MCP Apps workbench, forked from `xiaoqin422/dsh-
 - **Workbench**: a tool that declares a `ui://` resource renders its MCP App in the right-hand pane; a disabled connection exposes no tools to the model.
 - **Reconnect** on a card re-reads the tool list (`POST /api/mcp-apps/connections/<id>/refresh`); a server that sends `notifications/tools/list_changed` updates it on its own, and a dropped connection reconnects with a growing delay. The model sees the refreshed list from its next message: the tool snapshot is taken when a turn starts.
 
+## Interface
+
+![MCP connections panel: a server list with statuses beside the MCP Apps workbench](docs/preview.svg)
+
+The panel is built on public DSH theme tokens, so it follows the light and dark scheme, the active look, and the text size:
+
+- the header summarises the list: connections, active ones, tools, and failures;
+- a card carries the state dot, transport, tool count, OAuth state, the address with a copy button, and the "expose tools to the model" switch; **Edit**, **Test**, and **Reconnect** sit next to it, while deletion and an authorization reset live in the "…" menu;
+- the editor is split into **Connection**, **Authorization**, and **Options**, with the buttons pinned to the bottom; **Test** saves what you typed and tries to connect;
+- the empty list offers two ways to start, and the first state read shows skeleton rows.
+
+DSH builds the plugin card from `locale/<lang>.json` (`meta.title`, `meta.description`, `meta.detail`) and `icon.svg`, exported as `./locale/*.json` and `./icon`. The detail page renders the document named by `meta.detail` — one image, `docs/preview.svg`.
+
 ## Localization
 
 Every string lives in one module, `lib/locales.js`, with one dictionary per language. The key set is defined by `zh` — it carries the upstream literals, so the fork stays diffable against the original — and the other languages are written against exactly that key set.
@@ -17,7 +30,7 @@ Both halves read the same module:
 - **browser half** (`src/client.js`) registers the dictionaries with the DSH locale service (`ctx.locale.register("mcp-apps", dictionaries)`) and translates through `tr()` from `src/i18n.js`; switching the language in Settings re-renders the panel in place, without a reload;
 - **host half** (`lib/index.js`) imports `lib/locales.js` directly, because the locale service is browser-only: the panel reports its language to `POST /api/mcp-apps/locale`, the host remembers it in `$DSH_HOME/mcp-apps/locale.json` and rebuilds the system-prompt section. The OAuth callback page takes the language from the request's `Accept-Language`.
 
-The plugin card in the plugin list is a separate path: DSH reads it from `locale/<lang>.json`, which holds only `meta.title` and `meta.description`. Three files ship today (`en`, `ru`, `zh`); `en.json` is the anchor, and without it DSH reads no metadata at all.
+The plugin card in the plugin list is a separate path: DSH reads it from `locale/<lang>.json`, which holds only `meta.title` and `meta.description`. Three files ship today (`en`, `ru`, `zh`); `en.json` is the anchor, and without it DSH reads no metadata at all. `meta.detail` is optional: without it the detail page falls back to this README.
 
 ### Adding a language
 

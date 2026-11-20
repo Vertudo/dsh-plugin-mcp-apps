@@ -1,7 +1,8 @@
 {
   "name": "dsh-plugin-mcp-apps",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "MCP-подключения: панель управления MCP-серверами (HTTP/SSE/stdio, авторизация токеном или OAuth 2.0, импорт servers.json). Форк dsh-plugin-mcp-apps с модульной локализацией: ru, en, zh.",
+  "icon": "icon.svg",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -11,11 +12,16 @@
     "./client": {
       "default": "./lib/client.js"
     },
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
   "files": [
     "LICENSE",
     "README.md",
+    "README.ru.md",
+    "icon.svg",
+    "docs",
     "locale",
     "cordis.patch.yml",
     "lib/auth.js",
@@ -25,6 +31,8 @@
     "lib/oauth.js",
     "src/client.js",
     "src/i18n.js",
+    "src/styles.css",
+    "src/ui.js",
     "scripts/build-client.mjs",
     "scripts/check-artifacts.mjs",
     "scripts/check-i18n.mjs",

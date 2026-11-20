@@ -5,6 +5,7 @@
 // source — edit here and run `npm run build`.
 import * as React from "react";
 import { currentLanguage, dictionaries, NAMESPACE, setLanguage, tr, useLocaleRevision } from "./i18n.js";
+import { CopyButton, Glyph, installStyles, Menu, MenuItem, Spinner, Switch } from "./ui.js";
 
 //#region constants
 const UI_PROTOCOL = "2026-01-26";
@@ -152,110 +153,98 @@ function useStore() {
 }
 //#endregion
 
-//#region styles
+//#region shared view helpers
 const h = React.createElement;
-const cardStyle = {
-	border: "1px solid var(--dsh-border-subtle, rgba(127,127,127,.28))",
-	borderRadius: "12px",
-	padding: "14px",
-	display: "grid",
-	gap: "8px",
-	background: "var(--dsh-surface-raised, transparent)"
-};
-const headerRow = { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" };
-const titleStyle = { fontSize: "14px", fontWeight: 600 };
-const subtitle = { fontSize: "12px", opacity: 0.7 };
-const monoStyle = {
-	fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-	fontSize: "11px",
-	padding: "1px 5px",
-	borderRadius: "4px",
-	background: "var(--dsh-surface-sunken, rgba(127,127,127,.14))",
-	wordBreak: "break-all"
-};
-const inputStyle = {
-	width: "100%",
-	minHeight: "34px",
-	padding: "4px 8px",
-	borderRadius: "8px",
-	border: "1px solid var(--dsh-border-subtle, rgba(127,127,127,.35))",
-	background: "transparent",
-	color: "inherit",
-	font: "inherit",
-	boxSizing: "border-box"
-};
-const buttonStyle = {
-	minHeight: "32px",
-	padding: "0 14px",
-	border: "0",
-	borderRadius: "8px",
-	background: "var(--dsh-accent, #2f6feb)",
-	color: "#fff",
-	font: "inherit",
-	fontWeight: 600,
-	cursor: "pointer"
-};
-const ghostButton = {
-	minHeight: "28px",
-	padding: "0 10px",
-	border: "1px solid var(--dsh-border-subtle, rgba(127,127,127,.35))",
-	borderRadius: "8px",
-	background: "transparent",
-	color: "inherit",
-	font: "inherit",
-	fontSize: "12px",
-	cursor: "pointer"
-};
-const dangerButton = { ...ghostButton, color: "var(--dsh-danger, #d0453f)" };
-const labelStyle = { fontSize: "12px", opacity: 0.75, marginBottom: "2px", display: "block" };
-const errorText = { fontSize: "12px", color: "var(--dsh-danger, #d0453f)", lineHeight: "18px", wordBreak: "break-word" };
-const noteBox = {
-	fontSize: "12px",
-	lineHeight: "18px",
-	padding: "8px 10px",
-	borderRadius: "8px",
-	background: "var(--dsh-surface-sunken, rgba(127,127,127,.08))",
-	whiteSpace: "pre-wrap",
-	wordBreak: "break-word"
-};
-const STATUS_COLORS = { ready: "#2f9e5f", connecting: "#d8a01a", refreshing: "#d8a01a", reconnecting: "#d8a01a", error: "#d0453f", needs_auth: "#d8a01a", disabled: "rgba(127,127,127,.55)" };
+/** Connection state -> dictionary key; an unknown state shows its raw name. */
 const STATUS_KEY = { ready: "card.status.ready", connecting: "card.status.connecting", refreshing: "card.status.refreshing", reconnecting: "card.status.reconnecting", error: "card.status.error", needs_auth: "card.status.needs_auth", disabled: "card.status.disabled" };
-/** Localized status label; an unknown status shows raw rather than vanishing. */
 const statusText = (status) => (STATUS_KEY[status] ? tr(STATUS_KEY[status]) : status);
 //#endregion
 
 //#region connection page
+/** Protocol name shown on a card; the protocol itself is not translated. */
+const transportLabel = (transport) => (transport === "stdio" ? "stdio" : transport === "sse" ? "SSE" : "HTTP");
+
+/** What a card shows as its endpoint: the command for stdio, the URL otherwise. */
+function endpointOf(connection) {
+	if (connection.transport === "stdio") {
+		const args = connection.args || [];
+		const line = [connection.command, ...args].filter((part) => part !== "").join(" ");
+		return line || tr("card.noUrl");
+	}
+	return connection.url || tr("card.noUrl");
+}
+
+/** Human summary of the authorization mode, without the OAuth token state. */
+function authSummary(connection) {
+	const auth = connection.auth || {};
+	if (auth.mode === "oauth") {
+		const mode = auth.clientMode === "cimd" ? " · " + tr("card.auth.cimd") : auth.clientMode === "manual" ? " · " + tr("card.auth.manual") : "";
+		return "OAuth 2.0" + mode;
+	}
+	if (auth.mode === "api") {
+		const count = (auth.params || []).filter((param) => param.hasValue).length;
+		return count > 0 ? tr("card.auth.params", { count }) : tr("card.auth.noParams");
+	}
+	return tr("editor.auth.none");
+}
+
+/** One labelled input. */
 function Field(props) {
+	const reactId = React.useId();
+	const id = props.id || reactId;
 	return h(
 		"div",
-		null,
-		h("label", { style: labelStyle }, props.label),
+		{ className: "mcp-field" },
+		h("label", { className: "mcp-label", htmlFor: id }, props.label),
 		props.kind === "select"
 			? h(
-					"select",
-					{ value: props.value, onChange: (event) => props.onChange(event.target.value), style: inputStyle },
-					(props.options || []).map((option) => h("option", { key: option.value, value: option.value }, option.label))
+					"div",
+					{ className: "mcp-select-wrap" },
+					h(
+						"select",
+						{ id, className: "mcp-select", value: props.value, onChange: (event) => props.onChange(event.target.value) },
+						(props.options || []).map((option) => h("option", { key: option.value, value: option.value }, option.label))
+					)
 				)
 			: h("input", {
+					id,
+					className: "mcp-input",
 					value: props.value,
 					placeholder: props.placeholder || "",
 					onChange: (event) => props.onChange(event.target.value),
-					style: inputStyle,
-					type: props.type || "text"
+					type: props.type || "text",
+					autoComplete: "off",
+					spellCheck: false
 				})
 	);
 }
 
+/** One labelled multi-line input. */
 function TextArea(props) {
-	return h("textarea", {
-		value: props.value,
-		placeholder: props.placeholder || "",
-		onChange: (event) => props.onChange(event.target.value),
-		style: { ...inputStyle, minHeight: "140px", padding: "8px", resize: "vertical", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: "12px" }
-	});
+	const reactId = React.useId();
+	const id = props.id || reactId;
+	return h(
+		"div",
+		{ className: "mcp-field" },
+		props.label ? h("label", { className: "mcp-label", htmlFor: id }, props.label) : null,
+		h("textarea", {
+			id,
+			className: "mcp-textarea",
+			"aria-label": props.ariaLabel,
+			value: props.value,
+			placeholder: props.placeholder || "",
+			onChange: (event) => props.onChange(event.target.value),
+			spellCheck: false
+		})
+	);
 }
 
-/** Form for one connection: transport, target, auth parameters. */
+/** One section of the editor form. */
+function Group(props) {
+	return h("fieldset", { className: "mcp-group" }, h("legend", { className: "mcp-group-title" }, props.title), props.children);
+}
+
+/** Form for one connection: transport, target, authorization. */
 function ConnectionEditor(props) {
 	const connection = props.connection;
 	const isNew = !connection;
@@ -286,6 +275,20 @@ function ConnectionEditor(props) {
 	const [testResult, setTestResult] = React.useState(null);
 	const set = (patch) => setDraft((current) => ({ ...current, ...patch }));
 
+	React.useEffect(() => {
+		const onKey = (event) => {
+			if (event.key === "Escape") props.onDone();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [props.onDone]);
+
+	/** The one field that makes this draft testable, as a dictionary key. */
+	const missingKey = () => {
+		if (draft.transport === "stdio") return draft.command.trim() === "" ? "editor.error.command" : "";
+		return draft.url.trim() === "" ? "editor.error.url" : "";
+	};
+
 	const payload = () => ({
 		record: {
 			id: draft.id,
@@ -294,7 +297,10 @@ function ConnectionEditor(props) {
 			transport: draft.transport,
 			url: draft.url.trim(),
 			command: draft.command.trim(),
-			args: draft.argsText.split("\n").map((line) => line.trim()).filter((line) => line !== ""),
+			args: draft.argsText
+				.split("\n")
+				.map((line) => line.trim())
+				.filter((line) => line !== ""),
 			env: Object.fromEntries(
 				draft.envText
 					.split("\n")
@@ -315,13 +321,26 @@ function ConnectionEditor(props) {
 		}
 	});
 
+	/**
+	 * Create the record once, then update it. `Test` may already have created it — saving
+	 * again must not add a second connection with the same name.
+	 */
+	const persist = async () => {
+		const body = payload();
+		if (draft.id) return api("/connections/" + encodeURIComponent(draft.id), { method: "PUT", body: JSON.stringify(body) });
+		return api("/connections", { method: "POST", body: JSON.stringify(body) });
+	};
+
 	const save = async () => {
+		const missing = missingKey();
+		if (missing !== "") {
+			setError(tr(missing));
+			return;
+		}
 		setBusy("save");
 		setError("");
 		try {
-			const body = payload();
-			if (isNew) await api("/connections", { method: "POST", body: JSON.stringify(body) });
-			else await api("/connections/" + encodeURIComponent(draft.id), { method: "PUT", body: JSON.stringify(body) });
+			await persist();
 			await refreshState();
 			props.onDone();
 		} catch (error) {
@@ -332,13 +351,18 @@ function ConnectionEditor(props) {
 	};
 
 	const test = async () => {
+		const missing = missingKey();
+		if (missing !== "") {
+			setError(tr(missing));
+			return;
+		}
 		setBusy("test");
 		setError("");
 		setTestResult(null);
 		try {
-			// The probe needs the host to hold the record (and its secret), so save first.
+			// The probe needs the host to hold the record (and its secret), so persist first.
 			let id = draft.id;
-			if (isNew) {
+			if (!id) {
 				const created = await api("/connections", { method: "POST", body: JSON.stringify(payload()) });
 				id = created.connection.id;
 				set({ id });
@@ -355,178 +379,198 @@ function ConnectionEditor(props) {
 	};
 
 	return h(
-		"div",
-		{ style: { ...cardStyle, gap: "10px", borderColor: "var(--dsh-accent, #2f6feb)" } },
-		h("div", { style: { ...titleStyle, fontSize: "13px" } }, isNew ? tr("editor.title.new") : tr("editor.title.edit", { name: connection.name })),
-		h(Field, { label: tr("editor.name"), value: draft.name, placeholder: tr("editor.name.ph"), onChange: (value) => set({ name: value }) }),
+		"section",
+		{ className: "mcp-editor", "aria-label": isNew ? tr("editor.title.new") : tr("editor.title.edit", { name: connection.name }) },
 		h(
-			"div",
-			null,
-			h("label", { style: labelStyle }, tr("editor.transport")),
+			"header",
+			{ className: "mcp-editor-head" },
+			h("h2", { className: "mcp-editor-title" }, isNew ? tr("editor.title.new") : tr("editor.title.edit", { name: connection.name })),
 			h(
-				"select",
-				{
-					value: draft.transport,
-					onChange: (event) => set({ transport: event.target.value }),
-					style: { ...inputStyle, minHeight: "32px" }
-				},
-				h("option", { value: "http" }, "Streamable HTTP"),
-				h("option", { value: "sse" }, "SSE"),
-				h("option", { value: "stdio" }, tr("editor.transport.stdio"))
+				"button",
+				{ type: "button", className: "mcp-btn mcp-btn--icon mcp-btn--sm", style: { marginLeft: "auto" }, title: tr("common.close"), "aria-label": tr("common.close"), onClick: props.onDone },
+				h(Glyph, { name: "close" })
 			)
 		),
-		draft.transport === "stdio"
-			? h(
-					"div",
-					{ style: { display: "grid", gap: "8px" } },
-					h(Field, { label: tr("editor.command"), value: draft.command, placeholder: "npx", onChange: (value) => set({ command: value }) }),
-					h(Field, { label: tr("editor.args"), value: draft.argsText, placeholder: "-y\n@modelcontextprotocol/server-everything", onChange: (value) => set({ argsText: value }) }),
-					h(Field, { label: tr("editor.env"), value: draft.envText, placeholder: "API_KEY=xxx", onChange: (value) => set({ envText: value }) }),
-					h(Field, { label: tr("editor.cwd"), value: draft.cwd, placeholder: "/opt/mcp", onChange: (value) => set({ cwd: value }) })
-				)
-			: h(Field, { label: tr("editor.url"), value: draft.url, placeholder: "https://mcp.example.com/mcp", onChange: (value) => set({ url: value }) }),
 		h(
 			"div",
-			null,
-			h("label", { style: labelStyle }, tr("editor.auth")),
+			{ className: "mcp-editor-body" },
 			h(
-				"select",
-				{
-					value: draft.authMode,
-					onChange: (event) => set({ authMode: event.target.value }),
-					style: { ...inputStyle, minHeight: "32px" }
-				},
-				h("option", { value: "none" }, tr("editor.auth.none")),
-				h("option", { value: "api" }, tr("editor.auth.api")),
-				h("option", { value: "oauth" }, tr("editor.auth.oauth"))
-			)
-		),
-		draft.authMode === "api"
-			? h(
+				Group,
+				{ title: tr("editor.section.main") },
+				h(
 					"div",
-					{ style: { display: "grid", gap: "6px" } },
-					draft.params.length === 0 ? h("div", { style: subtitle }, tr("editor.params.empty")) : null,
-					draft.params.map((param, index) =>
-						h(
+					{ className: "mcp-grid-2" },
+					h(Field, { label: tr("editor.name"), value: draft.name, placeholder: tr("editor.name.ph"), onChange: (value) => set({ name: value }) }),
+					h(Field, {
+						label: tr("editor.transport"),
+						kind: "select",
+						value: draft.transport,
+						options: [
+							{ value: "http", label: "Streamable HTTP" },
+							{ value: "sse", label: "SSE" },
+							{ value: "stdio", label: tr("editor.transport.stdio") }
+						],
+						onChange: (value) => set({ transport: value })
+					})
+				),
+				draft.transport === "stdio"
+					? h(
 							"div",
-							{ key: index, style: { display: "grid", gridTemplateColumns: "92px 1fr 1fr auto", gap: "6px", alignItems: "center" } },
+							{ className: "mcp-stack" },
 							h(
-								"select",
-								{
-									value: param.in,
-									onChange: (event) => {
-										const next = draft.params.slice();
-										next[index] = { ...param, in: event.target.value };
-										set({ params: next });
-									},
-									style: { ...inputStyle, minHeight: "30px" }
-								},
-								h("option", { value: "header" }, "Header"),
-								h("option", { value: "query" }, "Query"),
-								h("option", { value: "body" }, "Body")
+								"div",
+								{ className: "mcp-grid-2" },
+								h(Field, { label: tr("editor.command"), value: draft.command, placeholder: "npx", onChange: (value) => set({ command: value }) }),
+								h(Field, { label: tr("editor.cwd"), value: draft.cwd, placeholder: "/opt/mcp", onChange: (value) => set({ cwd: value }) })
 							),
-							h("input", {
-								value: param.name,
-								placeholder: tr("editor.params.name"),
-								onChange: (event) => {
-									const next = draft.params.slice();
-									next[index] = { ...param, name: event.target.value };
-									set({ params: next });
-								},
-								style: inputStyle
-							}),
-							h("input", {
-								value: param.value,
-								placeholder: tr("editor.params.value"),
-								type: "password",
-								onChange: (event) => {
-									const next = draft.params.slice();
-									next[index] = { ...param, value: event.target.value };
-									set({ params: next });
-								},
-								style: inputStyle
-							}),
+							h(TextArea, { label: tr("editor.args"), value: draft.argsText, placeholder: "-y\n@modelcontextprotocol/server-everything", onChange: (value) => set({ argsText: value }) }),
+							h(TextArea, { label: tr("editor.env"), value: draft.envText, placeholder: "API_KEY=xxx", onChange: (value) => set({ envText: value }) })
+						)
+					: h(Field, { label: tr("editor.url"), value: draft.url, placeholder: "https://mcp.example.com/mcp", onChange: (value) => set({ url: value }) }),
+				h(Field, { label: tr("editor.note"), value: draft.note, onChange: (value) => set({ note: value }) })
+			),
+			h(
+				Group,
+				{ title: tr("editor.section.auth") },
+				h(Field, {
+					label: tr("editor.auth.mode"),
+					kind: "select",
+					value: draft.authMode,
+					options: [
+						{ value: "none", label: tr("editor.auth.none") },
+						{ value: "api", label: tr("editor.auth.api") },
+						{ value: "oauth", label: tr("editor.auth.oauth") }
+					],
+					onChange: (value) => set({ authMode: value })
+				}),
+				draft.authMode === "api"
+					? h(
+							"div",
+							{ className: "mcp-params" },
+							draft.params.length === 0 ? h("div", { className: "mcp-hint" }, tr("editor.params.empty")) : null,
+							draft.params.map((param, index) =>
+								h(
+									"div",
+									{ key: index, className: "mcp-param" },
+									h(
+										"div",
+										{ className: "mcp-select-wrap" },
+										h(
+											"select",
+											{
+												className: "mcp-select",
+												"aria-label": tr("editor.params.in"),
+												value: param.in,
+												onChange: (event) => {
+													const next = draft.params.slice();
+													next[index] = { ...param, in: event.target.value };
+													set({ params: next });
+												}
+											},
+											h("option", { value: "header" }, "Header"),
+											h("option", { value: "query" }, "Query"),
+											h("option", { value: "body" }, "Body")
+										)
+									),
+									h("input", {
+										className: "mcp-input",
+										"aria-label": tr("editor.params.name"),
+										value: param.name,
+										placeholder: tr("editor.params.name"),
+										onChange: (event) => {
+											const next = draft.params.slice();
+											next[index] = { ...param, name: event.target.value };
+											set({ params: next });
+										}
+									}),
+									h("input", {
+										className: "mcp-input mcp-param-value",
+										"aria-label": tr("editor.params.value"),
+										value: param.value,
+										placeholder: tr("editor.params.value"),
+										type: "password",
+										autoComplete: "off",
+										onChange: (event) => {
+											const next = draft.params.slice();
+											next[index] = { ...param, value: event.target.value };
+											set({ params: next });
+										}
+									}),
+									h(
+										"button",
+										{ type: "button", className: "mcp-btn mcp-btn--icon mcp-btn--sm", title: tr("common.delete"), "aria-label": tr("common.delete"), onClick: () => set({ params: draft.params.filter((_, at) => at !== index) }) },
+										h(Glyph, { name: "trash" })
+									)
+								)
+							),
 							h(
 								"button",
-								{
-									type: "button",
-									style: ghostButton,
-									onClick: () => set({ params: draft.params.filter((_, at) => at !== index) })
-								},
-								tr("common.delete")
-							)
+								{ type: "button", className: "mcp-btn mcp-btn--secondary mcp-btn--sm", style: { justifySelf: "start" }, onClick: () => set({ params: draft.params.concat([{ in: "header", name: "", value: "" }]) }) },
+								h(Glyph, { name: "plus" }),
+								tr("editor.params.add")
+							),
+							h("div", { className: "mcp-hint" }, tr("editor.params.secret"))
 						)
-					),
-					h(
-						"button",
-						{ type: "button", style: ghostButton, onClick: () => set({ params: draft.params.concat([{ in: "header", name: "", value: "" }]) }) },
-						tr("editor.params.add")
-					),
-					h("div", { style: subtitle }, tr("editor.params.secret"))
-				)
-			: null,
-		draft.authMode === "oauth"
-			? h(
-					"div",
-					{ style: { display: "grid", gap: "6px" } },
-					h(Field, { label: tr("editor.scope"), value: draft.scopes, placeholder: tr("editor.scope.ph"), onChange: (value) => set({ scopes: value }) }),
-					h(Field, {
-						label: tr("editor.clientMode"),
-						kind: "select",
-						value: draft.clientMode,
-						options: [
-							{ value: "auto", label: tr("editor.clientMode.auto") },
-							{ value: "cimd", label: tr("editor.clientMode.cimd") },
-							{ value: "manual", label: tr("editor.clientMode.manual") }
-						],
-						onChange: (value) => set({ clientMode: value })
-					}),
-					draft.clientMode === "cimd"
-						? h("div", { style: subtitle }, tr("editor.cimd.hint", { url: window.location.origin + "/api/mcp-apps/oauth/client-metadata.json" }))
-						: null,
-					draft.clientMode === "manual"
-						? h(Field, { label: tr("editor.clientId"), value: draft.clientId, placeholder: tr("editor.clientId.ph"), onChange: (value) => set({ clientId: value }) })
-						: null,
-					draft.clientMode === "manual"
-						? h(Field, { label: tr("editor.clientSecret"), value: draft.clientSecret, type: "password", placeholder: tr("editor.clientSecret.ph"), onChange: (value) => set({ clientSecret: value }) })
-						: null,
-					h(
-						"div",
-						{ style: subtitle },
-						tr("editor.oauth.hint")
-					)
-				)
-			: null,
-		h(Field, { label: tr("editor.note"), value: draft.note, onChange: (value) => set({ note: value }) }),
-		h(
-			"label",
-			{ style: { display: "flex", gap: "8px", alignItems: "center", fontSize: "12px" } },
-			h("input", { type: "checkbox", checked: draft.enabled, onChange: (event) => set({ enabled: event.target.checked }) }),
-			tr("editor.enableNow")
+					: null,
+				draft.authMode === "oauth"
+					? h(
+							"div",
+							{ className: "mcp-field" },
+							h(Field, { label: tr("editor.scope"), value: draft.scopes, placeholder: tr("editor.scope.ph"), onChange: (value) => set({ scopes: value }) }),
+							h(Field, {
+								label: tr("editor.clientMode"),
+								kind: "select",
+								value: draft.clientMode,
+								options: [
+									{ value: "auto", label: tr("editor.clientMode.auto") },
+									{ value: "cimd", label: tr("editor.clientMode.cimd") },
+									{ value: "manual", label: tr("editor.clientMode.manual") }
+								],
+								onChange: (value) => set({ clientMode: value })
+							}),
+							draft.clientMode === "cimd" ? h("div", { className: "mcp-hint" }, tr("editor.cimd.hint", { url: window.location.origin + "/api/mcp-apps/oauth/client-metadata.json" })) : null,
+							draft.clientMode === "manual" ? h(Field, { label: tr("editor.clientId"), value: draft.clientId, placeholder: tr("editor.clientId.ph"), onChange: (value) => set({ clientId: value }) }) : null,
+							draft.clientMode === "manual"
+								? h(Field, { label: tr("editor.clientSecret"), value: draft.clientSecret, type: "password", placeholder: tr("editor.clientSecret.ph"), onChange: (value) => set({ clientSecret: value }) })
+								: null,
+							h("div", { className: "mcp-hint" }, tr("editor.oauth.hint"))
+						)
+					: null
+			),
+			h(
+				Group,
+				{ title: tr("editor.section.options") },
+				h(Switch, { checked: draft.enabled, label: tr("editor.enable"), onChange: (value) => set({ enabled: value }) }),
+				h("div", { className: "mcp-hint" }, tr("editor.enableHint"))
+			)
 		),
-		error ? h("div", { style: errorText }, error) : null,
+		error ? h("div", { className: "mcp-alert", role: "alert" }, error) : null,
 		testResult
 			? testResult.ok
 				? h(
 						"div",
-						{ style: noteBox },
-						tr("editor.test.ok", { count: (testResult.tools || []).length }),
+						{ className: "mcp-alert mcp-alert--ok", role: "status" },
+						h("div", null, tr("editor.test.ok", { count: (testResult.tools || []).length })),
 						h(
 							"div",
-							{ style: { marginTop: "4px", display: "grid", gap: "2px" } },
-							(testResult.tools || []).slice(0, 40).map((tool) =>
-								h("div", { key: tool.name }, h("code", { style: monoStyle }, tool.name), tool.resourceUri ? h("span", { style: subtitle }, "  ui://") : null)
-							)
+							{ className: "mcp-stats", style: { marginTop: "4px", gap: "4px" } },
+							(testResult.tools || []).slice(0, 40).map((tool) => h("span", { key: tool.name, className: "mcp-chip" }, h("code", null, tool.name), tool.resourceUri ? " ui://" : null))
 						)
 					)
-				: h("div", { style: errorText }, tr("editor.test.error", { message: testResult.error }))
+				: h("div", { className: "mcp-alert", role: "alert" }, tr("editor.test.error", { message: testResult.error }))
 			: null,
 		h(
-			"div",
-			{ style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
-			h("button", { type: "button", style: buttonStyle, disabled: busy !== "", onClick: save }, busy === "save" ? tr("common.saving") : isNew ? tr("editor.save") : tr("common.save")),
-			h("button", { type: "button", style: ghostButton, disabled: busy !== "", onClick: test }, busy === "test" ? tr("common.testing") : tr("editor.test")),
-			h("button", { type: "button", style: ghostButton, onClick: props.onDone }, tr("common.cancel"))
+			"footer",
+			{ className: "mcp-editor-foot" },
+			h("span", { className: "mcp-hint" }, tr("editor.hint.test")),
+			h(
+				"button",
+				{ type: "button", className: "mcp-btn mcp-btn--secondary", disabled: busy !== "", onClick: test },
+				h(Glyph, { name: "check" }),
+				busy === "test" ? tr("common.testing") : tr("editor.test")
+			),
+			h("button", { type: "button", className: "mcp-btn mcp-btn--primary", disabled: busy !== "", onClick: save }, busy === "save" ? tr("common.saving") : isNew ? tr("editor.save") : tr("common.save")),
+			h("button", { type: "button", className: "mcp-btn mcp-btn--ghost", onClick: props.onDone }, tr("common.cancel"))
 		)
 	);
 }
@@ -536,14 +580,17 @@ function ConnectionCard(props) {
 	const connection = props.connection;
 	const [busy, setBusy] = React.useState("");
 	const [error, setError] = React.useState("");
-	const [note, setNote] = React.useState("");
+	const [feedback, setFeedback] = React.useState("");
+	const [confirming, setConfirming] = React.useState(false);
 	const run = async (label, action) => {
 		setBusy(label);
 		setError("");
-		setNote("");
+		setFeedback("");
 		try {
-			await action();
+			const result = await action();
 			await refreshState();
+			if (result && Array.isArray(result.tools)) setFeedback(tr("editor.test.ok", { count: result.tools.length }));
+			return result;
 		} catch (error) {
 			setError(error.message || String(error));
 		} finally {
@@ -556,6 +603,7 @@ function ConnectionCard(props) {
 	const authorize = async () => {
 		setBusy("auth");
 		setError("");
+		setFeedback("");
 		try {
 			const body = await api("/connections/" + encodeURIComponent(connection.id) + "/oauth-start", { method: "POST", body: "{}" });
 			if (!body.ok) throw hostError(body, "card.auth.startFail");
@@ -583,88 +631,216 @@ function ConnectionCard(props) {
 		}
 	};
 	return h(
-		"div",
-		{ style: cardStyle },
+		"article",
+		{ className: "mcp-card" + (connection.enabled ? "" : " mcp-card--off") },
 		h(
 			"div",
-			{ style: headerRow },
-			h("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: STATUS_COLORS[status] || STATUS_COLORS.disabled, display: "inline-block" } }),
-			h("span", { style: titleStyle }, connection.name),
-			h("span", { style: subtitle }, statusText(status)),
-			h("span", { style: { ...subtitle, marginLeft: "auto" } }, connection.enabled ? tr("card.tools", { count: connection.toolCount }) : tr("card.tools.disabled"))
-		),
-		h(
-			"div",
-			{ style: { ...subtitle, display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" } },
-			h("code", { style: monoStyle }, connection.transport === "stdio" ? connection.command : connection.url || tr("card.noUrl")),
-			connection.auth && connection.auth.mode === "api"
-				? h("span", null, tr("card.auth.params", { count: (connection.auth.params || []).filter((param) => param.hasValue).length }))
-				: connection.auth && connection.auth.mode === "oauth"
-					? h("span", null, "OAuth 2.0" + (connection.auth.clientMode === "cimd" ? " · " + tr("card.auth.cimd") : connection.auth.clientMode === "manual" ? " · " + tr("card.auth.manual") : "") + " · " + (connection.auth.oauth && connection.auth.oauth.authorized ? tr("card.auth.authorized") : tr("card.auth.unauthorized")) + (connection.auth.scopes ? " · " + connection.auth.scopes : ""))
-					: h("span", null, tr("editor.auth.none")),
-			connection.enabled && connection.lastListedAt
-				? h("span", null, tr("card.listedAt", { time: new Date(connection.lastListedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }))
-				: null
-		),
-		connection.note ? h("div", { style: { ...subtitle, lineHeight: "18px" } }, connection.note) : null,
-		error ? h("div", { style: errorText }, error) : null,
-		note ? h("div", { style: noteBox }, note) : null,
-		error === "" && connection.status === "error" && connection.error ? h("div", { style: errorText }, connection.error) : null,
-		h(
-			"div",
-			{ style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
-			h("button", {
-				type: "button",
-				style: connection.enabled ? ghostButton : buttonStyle,
-				disabled: busy !== "",
-				onClick: () =>
-					run("toggle", () =>
-						api("/connections/" + encodeURIComponent(connection.id) + "/enabled", {
-							method: "POST",
-							body: JSON.stringify({ enabled: !connection.enabled })
-						})
-					)
-			}, busy === "toggle" ? tr("common.processing") : connection.enabled ? tr("card.toggle.off") : tr("card.toggle.on")),
-			h("button", { type: "button", style: ghostButton, onClick: () => props.onEdit(connection) }, tr("common.edit")),
-			h("button", {
-				type: "button",
-				style: ghostButton,
-				disabled: busy !== "",
-				onClick: () => run("test", () => api("/connections/" + encodeURIComponent(connection.id) + "/test", { method: "POST", body: "{}" }))
-			}, busy === "test" ? tr("common.testing") : tr("common.test")),
-			h("button", {
-				type: "button",
-				style: ghostButton,
-				title: tr("card.refresh.hint"),
-				disabled: busy !== "" || !connection.enabled,
-				onClick: () =>
-					run("refresh", async () => {
-						await api("/connections/" + encodeURIComponent(connection.id) + "/refresh", { method: "POST", body: "{}" });
-						setNote(tr("card.refresh.hint"));
-					})
-			}, busy === "refresh" ? tr("common.processing") : tr("card.refresh")),
-			oauthMode
-				? h("button", { type: "button", style: authorized ? ghostButton : buttonStyle, disabled: busy !== "", onClick: authorize }, busy === "auth" ? tr("card.auth.waiting") : authorized ? tr("card.auth.reauthorize") : tr("card.auth.login"))
-				: null,
-			oauthMode && authorized
-				? h("button", {
+			{ className: "mcp-card-head" },
+			h("span", { className: "mcp-status", "data-state": status, "aria-hidden": true }),
+			h("h2", { className: "mcp-card-name" }, connection.name),
+			h("span", { className: "mcp-chip" }, transportLabel(connection.transport)),
+			connection.enabled && connection.status === "ready" ? h("span", { className: "mcp-chip" }, tr("card.tools", { count: connection.toolCount })) : null,
+			oauthMode ? h("span", { className: authorized ? "mcp-chip mcp-chip--ok" : "mcp-chip mcp-chip--warn" }, authorized ? tr("card.auth.authorized") : tr("card.auth.unauthorized")) : null,
+			h("span", { className: "mcp-card-status" }, statusText(status)),
+			h(
+				"div",
+				{ className: "mcp-card-tools" },
+				h(
+					"button",
+					{ type: "button", className: "mcp-btn mcp-btn--icon mcp-btn--sm", title: tr("common.edit"), "aria-label": tr("common.edit"), onClick: () => props.onEdit(connection) },
+					h(Glyph, { name: "edit" })
+				),
+				h(
+					"button",
+					{
 						type: "button",
-						style: ghostButton,
+						className: "mcp-btn mcp-btn--icon mcp-btn--sm",
+						title: tr("common.test"),
+						"aria-label": tr("common.test"),
 						disabled: busy !== "",
-						onClick: () => run("oauth-reset", () => api("/connections/" + encodeURIComponent(connection.id) + "/oauth-reset", { method: "POST", body: "{}" }))
-					}, tr("card.auth.reset"))
+						"aria-busy": busy === "test",
+						onClick: () => void run("test", () => api("/connections/" + encodeURIComponent(connection.id) + "/test", { method: "POST", body: "{}" }))
+					},
+					busy === "test" ? h(Spinner) : h(Glyph, { name: "check" })
+				),
+				h(
+					"button",
+					{
+						type: "button",
+						className: "mcp-btn mcp-btn--icon mcp-btn--sm",
+						title: tr("card.refresh"),
+						"aria-label": tr("card.refresh"),
+						disabled: busy !== "" || !connection.enabled,
+						"aria-busy": busy === "refresh",
+						onClick: () =>
+							void run("refresh", async () => {
+								await api("/connections/" + encodeURIComponent(connection.id) + "/refresh", { method: "POST", body: "{}" });
+								setFeedback(tr("card.refreshed"));
+								return undefined;
+							})
+					},
+					busy === "refresh" ? h(Spinner) : h(Glyph, { name: "refresh" })
+				),
+				h(
+					Menu,
+					{ label: tr("card.menu.more") },
+					oauthMode && authorized
+						? h(MenuItem, {
+								icon: "refresh",
+								disabled: busy !== "",
+								onSelect: () => void run("oauth-reset", () => api("/connections/" + encodeURIComponent(connection.id) + "/oauth-reset", { method: "POST", body: "{}" }))
+							}, tr("card.auth.reset"))
+						: null,
+					h(
+						MenuItem,
+						{
+							icon: "trash",
+							danger: true,
+							disabled: busy !== "",
+							onSelect: () => setConfirming(true)
+						},
+						tr("common.delete")
+					)
+				),
+				h(Switch, {
+					hideLabel: true,
+					checked: connection.enabled,
+					disabled: busy !== "",
+					label: tr("card.enableTools"),
+					onChange: (next) =>
+						void run("toggle", () =>
+							api("/connections/" + encodeURIComponent(connection.id) + "/enabled", {
+								method: "POST",
+								body: JSON.stringify({ enabled: next })
+							})
+						)
+				})
+			)
+		),
+		h(
+			"div",
+			{ className: "mcp-card-meta" },
+			h(
+				"span",
+				{ className: "mcp-endpoint" },
+				h("code", { title: endpointOf(connection) }, endpointOf(connection)),
+				h(CopyButton, { value: endpointOf(connection), label: tr("card.copy"), copiedLabel: tr("card.copied") })
+			),
+			h("span", { className: "mcp-meta-sep" }, "·"),
+			h("span", null, authSummary(connection)),
+			connection.enabled && connection.lastListedAt
+				? h("span", { className: "mcp-meta-sep mcp-meta-time" }, "·")
 				: null,
-			h("button", {
-				type: "button",
-				style: dangerButton,
-				disabled: busy !== "",
-				onClick: () => run("delete", () => api("/connections/" + encodeURIComponent(connection.id), { method: "DELETE" }))
-			}, tr("common.delete"))
+			connection.enabled && connection.lastListedAt ? h("span", { className: "mcp-meta-time" }, tr("card.listedAt", { time: new Date(connection.lastListedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) })) : null
+		),
+		connection.note ? h("p", { className: "mcp-note" }, connection.note) : null,
+		error ? h("div", { className: "mcp-alert", role: "alert" }, error) : null,
+		feedback ? h("div", { className: "mcp-alert mcp-alert--ok", role: "status" }, feedback) : null,
+		!error && connection.status === "error" && connection.error ? h("div", { className: "mcp-alert", role: "alert" }, connection.error) : null,
+		confirming
+			? h(
+					"div",
+					{ className: "mcp-alert", role: "alert" },
+					h("span", { style: { flex: 1 } }, tr("card.delete.confirm", { name: connection.name })),
+					h(
+						"button",
+						{
+							type: "button",
+							className: "mcp-btn mcp-btn--danger mcp-btn--sm",
+							disabled: busy !== "",
+							onClick: () => void run("delete", () => api("/connections/" + encodeURIComponent(connection.id), { method: "DELETE" }))
+						},
+						tr("common.delete")
+					),
+					h("button", { type: "button", className: "mcp-btn mcp-btn--ghost mcp-btn--sm", onClick: () => setConfirming(false) }, tr("common.cancel"))
+				)
+			: null,
+		oauthMode
+			? h(
+					"div",
+					{ className: "mcp-card-actions" },
+					h(
+						"button",
+						{ type: "button", className: authorized ? "mcp-btn mcp-btn--secondary mcp-btn--sm" : "mcp-btn mcp-btn--primary mcp-btn--sm", disabled: busy !== "", onClick: authorize },
+						busy === "auth" ? tr("card.auth.waiting") : authorized ? tr("card.auth.reauthorize") : tr("card.auth.login")
+					)
+				)
+			: null
+	);
+}
+
+/** Placeholder rows shown while the first state read is in flight. */
+function LoadingCards() {
+	return h(
+		"div",
+		{ className: "mcp-list", role: "status", "aria-label": tr("panel.loading") },
+		[0, 1, 2].map((index) =>
+			h(
+				"div",
+				{ key: index, className: "mcp-skeleton-card", "aria-hidden": true },
+				h("div", { className: "mcp-skeleton-line mcp-skeleton-line--title" }),
+				h("div", { className: "mcp-skeleton-line mcp-skeleton-line--wide" }),
+				h("div", { className: "mcp-skeleton-line mcp-skeleton-line--short" })
+			)
 		)
 	);
 }
 
-/** The 「Подключения」 page: list + add form + servers.json import. */
+/** Empty list: the two ways to create the first connection. */
+function EmptyState(props) {
+	return h(
+		"div",
+		{ className: "mcp-empty" },
+		h("span", { className: "mcp-empty-icon" }, h(Glyph, { name: "plug", size: 22 })),
+		h("h2", { className: "mcp-empty-title" }, tr("panel.empty.title")),
+		h("p", { className: "mcp-empty-text" }, tr("panel.empty.text")),
+		h(
+			"div",
+			{ className: "mcp-empty-actions" },
+			h("button", { type: "button", className: "mcp-btn mcp-btn--primary", onClick: props.onAdd }, h(Glyph, { name: "plus" }), tr("panel.add")),
+			h("button", { type: "button", className: "mcp-btn mcp-btn--secondary", onClick: props.onImport }, tr("panel.import.short"))
+		)
+	);
+}
+
+/** The import form for a Claude Code `mcpServers` block. */
+function ImportCard(props) {
+	return h(
+		"section",
+		{ className: "mcp-editor", "aria-label": tr("panel.import.title") },
+		h(
+			"header",
+			{ className: "mcp-editor-head" },
+			h("h2", { className: "mcp-editor-title" }, tr("panel.import.title")),
+			h(
+				"button",
+				{ type: "button", className: "mcp-btn mcp-btn--icon mcp-btn--sm", style: { marginLeft: "auto" }, title: tr("common.close"), "aria-label": tr("common.close"), onClick: props.onCancel },
+				h(Glyph, { name: "close" })
+			)
+		),
+		h(
+			"div",
+			{ className: "mcp-editor-body" },
+			h(TextArea, {
+				value: props.value,
+				ariaLabel: tr("panel.import.json"),
+				placeholder:
+					'{\n  "mcpServers": {\n    "notion": { "type": "http", "url": "https://mcp.notion.com/mcp", "headers": { "Authorization": "Bearer xxx" } },\n    "local": { "command": "npx", "args": ["-y", "some-mcp"] }\n  }\n}',
+				onChange: props.onChange
+			}),
+			props.error ? h("div", { className: "mcp-alert", role: "alert" }, props.error) : null
+		),
+		h(
+			"footer",
+			{ className: "mcp-editor-foot" },
+			h("span", { className: "mcp-hint" }, tr("panel.import.hint")),
+			h("button", { type: "button", className: "mcp-btn mcp-btn--primary", disabled: props.busy || props.value.trim() === "", onClick: props.onImport }, props.busy ? tr("panel.import.busy") : tr("panel.import.action")),
+			h("button", { type: "button", className: "mcp-btn mcp-btn--ghost", onClick: props.onCancel }, tr("common.cancel"))
+		)
+	);
+}
+
+/** The 「Подключения」 page: list, add form, servers.json import. */
 function ConnectAppsPage() {
 	useLocaleRevision();
 	const view = useStore();
@@ -674,6 +850,11 @@ function ConnectAppsPage() {
 	const [importText, setImportText] = React.useState("");
 	const [importError, setImportError] = React.useState("");
 	const [busy, setBusy] = React.useState(false);
+	/** The page is its own scrollport; opening a card from far down has to bring it back. */
+	const pageRef = React.useRef(null);
+	const scrollToTop = () => {
+		if (pageRef.current) pageRef.current.scrollTop = 0;
+	};
 
 	React.useEffect(() => {
 		const onMessage = (event) => {
@@ -683,15 +864,29 @@ function ConnectAppsPage() {
 		return () => window.removeEventListener("message", onMessage);
 	}, []);
 
+	const openEditor = (target) => {
+		scrollToTop();
+		setEditing(target);
+		setCreating(!target);
+		setImporting(false);
+	};
+
+	/** The import card follows the same rule: it opens above whatever was on screen. */
+	const openImport = () => {
+		scrollToTop();
+		setImporting(true);
+		setCreating(false);
+		setEditing(null);
+	};
+
 	const doImport = async () => {
 		setBusy(true);
 		setImportError("");
 		try {
-			const body = await api("/import", { method: "POST", body: JSON.stringify({ json: importText }) });
+			await api("/import", { method: "POST", body: JSON.stringify({ json: importText }) });
 			setImporting(false);
 			setImportText("");
 			await refreshState();
-			void body;
 		} catch (error) {
 			setImportError(error.message || String(error));
 		} finally {
@@ -699,54 +894,84 @@ function ConnectAppsPage() {
 		}
 	};
 
+	const connections = view.connections;
+	const workingCount = connections.filter((connection) => connection.enabled && connection.status === "ready").length;
+	const errorCount = connections.filter((connection) => connection.status === "error").length;
+	const toolCount = connections.reduce((total, connection) => total + (connection.enabled ? connection.toolCount || 0 : 0), 0);
+
 	return h(
 		"div",
-		{ style: { padding: "18px", display: "grid", gap: "14px", maxWidth: "920px" } },
+		{ className: "mcp-root mcp-page", ref: pageRef },
 		h(
-			"div",
-			null,
-			h("div", { style: { fontSize: "18px", fontWeight: 600 } }, panelTitle()),
-			h("div", { style: { ...subtitle, marginTop: "4px", lineHeight: "18px" } }, tr("panel.intro")),
-			view.storePath !== ""
-				? h("div", { style: { ...subtitle, marginTop: "4px", fontFamily: monoStyle.fontFamily, wordBreak: "break-all" } }, tr("panel.store", { path: view.storePath }))
-				: null
+			"header",
+			{ className: "mcp-head" },
+			h("div", { className: "mcp-head-text" }, h("h1", { className: "mcp-title" }, panelTitle()), h("p", { className: "mcp-intro" }, tr("panel.intro"))),
+			h(
+				"div",
+				{ className: "mcp-head-actions" },
+				!view.loading && connections.length === 0
+					? null
+					: h("button", { type: "button", className: "mcp-btn mcp-btn--primary", onClick: () => openEditor(null) }, h(Glyph, { name: "plus" }), tr("panel.add")),
+				!view.loading && connections.length === 0
+					? null
+					: h("button", { type: "button", className: "mcp-btn mcp-btn--secondary", onClick: openImport }, tr("panel.import.short")),
+				h(
+					"button",
+					{ type: "button", className: "mcp-btn mcp-btn--icon", title: tr("panel.refresh"), "aria-label": tr("panel.refresh"), onClick: () => void refreshState() },
+					h(Glyph, { name: "refresh" })
+				)
+			)
 		),
-		h(
-			"div",
-			{ style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
-			h("button", { type: "button", style: buttonStyle, onClick: () => { setCreating(true); setEditing(null); setImporting(false); } }, tr("panel.add")),
-			h("button", { type: "button", style: ghostButton, onClick: () => { setImporting(true); setCreating(false); setEditing(null); } }, tr("panel.import")),
-			h("button", { type: "button", style: ghostButton, onClick: () => void refreshState() }, tr("panel.refresh")),
-			view.error ? h("span", { style: errorText }, view.error) : null
-		),
-		importing
+		!view.loading && connections.length > 0
 			? h(
 					"div",
-					{ style: { ...cardStyle, gap: "8px" } },
-					h("div", { style: titleStyle }, tr("panel.import.title")),
-					h(TextArea, {
-						value: importText,
-						placeholder: '{\n  "mcpServers": {\n    "notion": { "type": "http", "url": "https://mcp.notion.com/mcp", "headers": { "Authorization": "Bearer xxx" } },\n    "local": { "command": "npx", "args": ["-y", "some-mcp"] }\n  }\n}',
-						onChange: setImportText
-					}),
-					importError ? h("div", { style: errorText }, importError) : null,
-					h(
-						"div",
-						{ style: { display: "flex", gap: "8px" } },
-						h("button", { type: "button", style: buttonStyle, disabled: busy || importText.trim() === "", onClick: doImport }, busy ? tr("panel.import.busy") : tr("panel.import.action")),
-						h("button", { type: "button", style: ghostButton, onClick: () => setImporting(false) }, tr("common.cancel"))
-					)
+					{ className: "mcp-stats" },
+					h("span", { className: "mcp-chip" }, tr("panel.stats.connections", { count: connections.length })),
+					h("span", { className: workingCount > 0 ? "mcp-chip mcp-chip--ok" : "mcp-chip" }, tr("panel.stats.working", { count: workingCount })),
+					toolCount > 0 ? h("span", { className: "mcp-chip" }, tr("card.tools", { count: toolCount })) : null,
+					errorCount > 0 ? h("span", { className: "mcp-chip mcp-chip--error" }, tr("panel.stats.errors", { count: errorCount })) : null
 				)
 			: null,
-		creating ? h(ConnectionEditor, { onDone: () => setCreating(false) }) : null,
-		editing ? h(ConnectionEditor, { connection: editing, onDone: () => setEditing(null) }) : null,
-		view.loading
-			? h("div", { style: subtitle }, tr("panel.loading"))
-			: view.connections.length === 0
-				? h("div", { style: noteBox }, tr("panel.empty"))
-				: view.connections.map((connection) =>
-						h(ConnectionCard, { key: connection.id, connection, onEdit: (target) => { setEditing(target); setCreating(false); setImporting(false); } })
-					)
+		view.error
+			? h(
+					"div",
+					{ className: "mcp-alert", role: "alert" },
+					h("span", { style: { flex: 1 } }, view.error),
+					h("button", { type: "button", className: "mcp-btn mcp-btn--secondary mcp-btn--sm", onClick: () => void refreshState() }, tr("common.retry"))
+				)
+			: null,
+		importing
+			? h(ImportCard, {
+					value: importText,
+					error: importError,
+					busy,
+					onChange: setImportText,
+					onImport: () => void doImport(),
+					onCancel: () => setImporting(false)
+				})
+			: null,
+		creating ? h(ConnectionEditor, { key: "new", onDone: () => setCreating(false) }) : null,
+		editing ? h(ConnectionEditor, { key: editing.id, connection: editing, onDone: () => setEditing(null) }) : null,
+		view.error
+			? null
+			: view.loading
+				? h(LoadingCards)
+				: connections.length === 0
+					? h(EmptyState, { onAdd: () => openEditor(null), onImport: openImport })
+					: h(
+							"div",
+							{ className: "mcp-list" },
+							connections.map((connection) => h(ConnectionCard, { key: connection.id, connection, onEdit: openEditor }))
+						),
+		view.storePath
+			? h(
+					"div",
+					{ className: "mcp-foot" },
+					h("span", null, tr("panel.store.label")),
+					h("code", null, view.storePath),
+					h(CopyButton, { value: view.storePath, label: tr("card.copyPath"), copiedLabel: tr("card.copied") })
+				)
+			: null
 	);
 }
 //#endregion
@@ -762,7 +987,17 @@ function snapshotToolFor(connectionId, currentRaw) {
 	return { name: pick.name, arguments: {} };
 }
 
-/** Whether the App is still waiting for its frame to report a handshake. */
+/** Colour scheme the host currently paints; MCP Apps receive it as `hostContext.theme`. */
+function hostTheme() {
+	if (typeof document === "undefined") return "light";
+	const body = document.body;
+	if (!body) return "light";
+	if (body.hasAttribute("data-ds-dark-theme")) return "dark";
+	if (document.documentElement.getAttribute("data-ds-dark-theme") !== null) return "dark";
+	return "light";
+}
+
+/** One MCP App: its `ui://` resource rendered in a sandboxed frame with the UI protocol. */
 function AppCard(props) {
 	const toolName = props.toolName || "";
 	const minHeight = props.minHeight || 420;
@@ -835,9 +1070,9 @@ function AppCard(props) {
 						id: data.id,
 						result: {
 							protocolVersion: UI_PROTOCOL,
-							hostInfo: { name: "dsh-plugin-mcp-apps", version: "0.5.7" },
+							hostInfo: { name: "dsh-plugin-mcp-apps", version: __DSH_PLUGIN_VERSION__ },
 							hostCapabilities: {},
-							hostContext: { theme: "light", displayMode: "inline" }
+							hostContext: { theme: hostTheme(), displayMode: "inline" }
 						}
 					});
 					return;
@@ -886,15 +1121,21 @@ function AppCard(props) {
 	}, [connectionId, meta && meta.rawName]);
 
 	if (!meta || !meta.resourceUri) {
-		return h("div", { style: noteBox }, tr("app.noResource"));
+		return h("div", { className: "mcp-iframe-note" }, h(Glyph, { name: "plug" }), tr("app.noResource"));
 	}
 
 	return h(
 		"div",
-		{ style: { border: "1px solid var(--dsh-border-subtle, rgba(127,127,127,.28))", borderRadius: "12px", overflow: "hidden" } },
-		error ? h("div", { style: { ...errorText, padding: "10px 12px" } }, error) : null,
-		status === "error" ? h("div", { style: { padding: "0 12px 12px" } }, h("button", { type: "button", style: buttonStyle, onClick: () => setAttempt((value) => value + 1) }, tr("common.retry"))) : null,
-		!html ? h("div", { style: { padding: "10px 12px", ...subtitle } }, status === "loading" ? tr("app.loading") : tr("app.preparing")) : null,
+		{ className: "mcp-frame" },
+		error ? h("div", { className: "mcp-alert", style: { margin: "8px" } }, error) : null,
+		status === "error"
+			? h(
+					"div",
+					{ style: { padding: "0 8px 8px" } },
+					h("button", { type: "button", className: "mcp-btn mcp-btn--primary mcp-btn--sm", onClick: () => setAttempt((value) => value + 1) }, h(Glyph, { name: "refresh" }), tr("common.retry"))
+				)
+			: null,
+		!html ? h("div", { className: "mcp-iframe-note", style: { margin: "8px" } }, status === "loading" ? tr("app.loading") : tr("app.preparing")) : null,
 		html
 			? h("iframe", {
 					ref: frameRef,
@@ -941,39 +1182,39 @@ function WorkbenchRow(props) {
 	}, [phase, callId, live, attempt]);
 
 	if (phase !== "result") {
-		return h("div", { style: noteBox }, tr("workbench.preparing"));
+		return h("div", { className: "mcp-iframe-note" }, h(Glyph, { name: "plug" }), tr("workbench.preparing"));
 	}
 	if (view === "idle") {
 		return h(
 			"div",
-			{ style: { ...noteBox, display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" } },
+			{ className: "mcp-iframe-note" },
 			h("span", null, tr("workbench.previousCall")),
-			h("button", { type: "button", style: ghostButton, onClick: attempt }, tr("workbench.openRight"))
+			h("button", { type: "button", className: "mcp-btn mcp-btn--secondary mcp-btn--sm", onClick: attempt }, tr("workbench.openRight"))
 		);
 	}
 	if (view === "opened") {
 		return h(
 			"div",
-			{ style: { ...noteBox, display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" } },
-			h("span", { style: { fontWeight: 600 } }, tr("workbench.openedMarker")),
-			h("span", { style: subtitle }, tr("workbench.resultHint")),
-			h("button", { type: "button", style: ghostButton, onClick: attempt }, tr("workbench.openRight"))
+			{ className: "mcp-iframe-note" },
+			h("span", { className: "mcp-workbench-title" }, tr("workbench.openedMarker")),
+			h("span", null, tr("workbench.resultHint")),
+			h("button", { type: "button", className: "mcp-btn mcp-btn--secondary mcp-btn--sm", onClick: attempt }, tr("workbench.openRight"))
 		);
 	}
 	// Right column unavailable: render the App inline instead of losing it.
 	const text = resultText(props.block);
 	return h(
 		"div",
-		{ style: { display: "grid", gap: "8px" } },
+		{ className: "mcp-list" },
 		h(
 			"div",
-			{ style: { ...errorText, padding: "0" } },
+			{ className: "mcp-alert", role: "alert" },
 			h("div", null, tr("workbench.failed")),
-			message ? h("div", { style: { opacity: 0.75 } }, tr("workbench.reason", { message })) : null,
+			message ? h("div", { style: { opacity: 0.8 } }, tr("workbench.reason", { message })) : null,
 			meta && meta.resourceUri ? h("div", { style: { marginTop: "4px" } }, tr("workbench.resource", { uri: meta.resourceUri })) : null
 		),
 		h(AppCard, { toolName, minHeight: 420 }),
-		text ? h("pre", { style: { ...noteBox, maxHeight: "220px", overflow: "auto" } }, text) : null
+		text ? h("pre", { className: "mcp-iframe-note", style: { maxHeight: "220px", overflow: "auto", margin: 0 } }, text) : null
 	);
 }
 
@@ -990,21 +1231,15 @@ function WorkbenchBody(props) {
 	const meta = toolMeta.get(toolName);
 	return h(
 		"div",
-		{ style: { height: "100%", overflow: "auto", padding: "8px" } },
-		h("div", { style: { ...subtitle, padding: "0 4px 8px" } }, meta ? meta.connectionName + " · " + meta.rawName : tr("tool.unknown")),
+		{ className: "mcp-root mcp-workbench" },
+		h(
+			"div",
+			{ className: "mcp-workbench-head" },
+			h("span", { className: "mcp-workbench-title" }, meta ? meta.connectionName : tr("tool.unknown")),
+			meta ? h("span", null, "· " + meta.rawName) : null
+		),
 		h(AppCard, { key: revision, toolName, minHeight: 560 })
 	);
-}
-
-/** Convert a settled tool result into the text fallback under an inline App. */
-function resultText(block) {
-	const content = block && block.content;
-	if (!Array.isArray(content)) return "";
-	const parts = [];
-	for (const item of content) {
-		if (item && item.type === "text" && typeof item.text === "string") parts.push(item.text);
-	}
-	return parts.join("\n").trim();
 }
 //#endregion
 
@@ -1072,6 +1307,7 @@ export const inject = ["slots"];
  */
 export function apply(ctx) {
 	shell = ctx;
+	ctx.effect(() => installStyles(), "mcp-apps: styles");
 
 	// The client locale service, when the host ships it, owns the active language and the
 	// registry our dictionaries belong to. Without it `tr()` keeps resolving against the
@@ -1128,3 +1364,4 @@ export function apply(ctx) {
 		return () => clearInterval(timer);
 	}, "mcp-apps: state poller");
 }
+

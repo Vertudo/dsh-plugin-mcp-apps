@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" role="img" aria-label="MCP connection">
+  <g fill="none" stroke-linecap="round" stroke-width="2.4">
+    <path d="M14.6 6.5v6.2M21.4 6.5v6.2" stroke="#6E86FF"/>
+    <path d="M18 24.2v2.6a4.2 4.2 0 0 1-4.2 4.2h-.6" stroke="#8A94A6"/>
+  </g>
+  <rect x="10" y="12.4" width="16" height="11.6" rx="3.2" fill="#3D5AF1"/>
+  <circle cx="13.6" cy="29.8" r="2" fill="#6E86FF"/>
+</svg>

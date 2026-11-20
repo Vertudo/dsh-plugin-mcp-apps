@@ -1,0 +1,993 @@
+/*
+ * Styling for the MCP connections panel.
+ *
+ * One rule governs the file: every colour, radius, shadow, font and focus metric is read
+ * from a public DSH token (`--dsw-*`) with a neutral fallback for hosts that do not define
+ * it. The plugin owns no palette of its own, so a DSH or third-party theme reaches the
+ * panel without overrides, and the same declarations serve light and dark.
+ *
+ * The `--mcp-*` layer below exists so component rules stay short and so a single place
+ * maps a semantic name onto the host token that carries it.
+ */
+
+.mcp-root {
+	--mcp-font: var(--dsw-font-family, var(--dsh-font-family-text, -apple-system, "Segoe UI", sans-serif));
+	--mcp-mono: var(--ds-font-family-code, ui-monospace, "Cascadia Code", Consolas, monospace);
+
+	--mcp-text: var(--dsw-alias-label-primary, inherit);
+	--mcp-text-2: var(--dsw-alias-label-secondary, rgba(127, 127, 127, 0.85));
+	--mcp-text-3: var(--dsw-alias-label-tertiary, rgba(127, 127, 127, 0.7));
+
+	--mcp-surface: var(--dsw-alias-bg-skeleton, rgba(127, 127, 127, 0.1));
+	--mcp-surface-hover: var(--dsw-alias-interactive-bg-hover, rgba(127, 127, 127, 0.12));
+	--mcp-card: var(--dsw-alias-card-fill, var(--dsw-alias-bg-layer-2, rgba(127, 127, 127, 0.05)));
+	--mcp-menu: var(--dsw-specific-menu, var(--dsw-alias-bg-layer-2, #f8f9fa));
+	/* The native option list paints on the platform's own surface, underneath the menu
+	 * fill: that fill is translucent for the in-app popover, so the list would show white
+	 * through it. Layer 2 is the opaque popover surface in both themes. */
+	--mcp-popup: var(--dsw-alias-bg-layer-2, var(--dsw-alias-card-fill, #ffffff));
+
+	--mcp-border: var(--dsw-alias-border-l2, rgba(127, 127, 127, 0.22));
+	--mcp-border-strong: var(--dsw-alias-border-l3, rgba(127, 127, 127, 0.32));
+	/* Control outlines: the host's l2 is a divider hairline, so controls take l4. */
+	--mcp-border-control: var(--dsw-alias-border-l4, rgba(127, 127, 127, 0.45));
+
+	--mcp-accent: var(--dsw-alias-state-business-primary, #4d6bfe);
+	--mcp-accent-fill: var(--dsw-alias-button-primary-fill, #1f2328);
+	--mcp-accent-fill-hover: var(--dsw-alias-button-primary-hover, #33373d);
+	--mcp-on-accent: var(--dsw-alias-label-primary-foreground, #ffffff);
+	--mcp-thumb: var(--dsw-alias-switch-thumb, #ffffff);
+
+	--mcp-success: var(--dsw-alias-state-success-primary, #2e9e63);
+	--mcp-warn: var(--dsw-alias-state-warn-primary, #b8860b);
+	--mcp-danger: var(--dsw-alias-state-error-primary, #c8433c);
+	--mcp-idle: var(--dsw-alias-state-idle-primary, #8a94a6);
+
+	/* The host publishes `--dsw-focus-ring-color: transparent` for its own automatic-focus
+	 * suppression, so the ring takes the accent and a fixed 2px width instead. */
+	--mcp-focus: var(--dsw-alias-state-business-primary, #4d6bfe);
+	--mcp-focus-width: 2px;
+
+	--mcp-radius-card: var(--dsw-radius-md, 12px);
+	--mcp-radius-control: var(--dsw-radius-sm, 8px);
+	--mcp-radius-chip: 6px;
+
+	--mcp-shadow: var(--dsw-elevation-panel, var(--dsw-shadow-lv2, 0 6px 16px rgba(0, 0, 0, 0.14)));
+
+	color: var(--mcp-text);
+	font-family: var(--mcp-font);
+}
+
+/* ── page ────────────────────────────────────────────────────────────── */
+
+/* The page owns the scrollport: the host's main column clips whatever overflows it, so a
+ * form taller than the window used to be cut off with no way to reach its lower fields.
+ * `align-content: start` keeps short pages from stretching their rows to fill the hole. */
+.mcp-page {
+	display: grid;
+	align-content: start;
+	gap: 18px;
+	width: 100%;
+	max-width: 1000px;
+	height: 100%;
+	padding: 24px 28px 0;
+	box-sizing: border-box;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+/* Trailing space sits on the content, not on the scrollport: a scroll container's own
+ * bottom padding lifts the sticky action bar that far off the window edge. */
+.mcp-page > :last-child {
+	margin-bottom: 40px;
+}
+
+.mcp-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+.mcp-head-text {
+	display: grid;
+	gap: 6px;
+	min-width: 240px;
+	flex: 1 1 360px;
+}
+
+.mcp-title {
+	margin: 0;
+	font-size: var(--dsw-font-l-20-font-size, 20px);
+	line-height: var(--dsw-font-l-20-line-height, 28px);
+	font-weight: var(--dsw-font-l-20-font-weight, 500);
+	color: var(--mcp-text);
+}
+
+.mcp-intro {
+	margin: 0;
+	max-width: 640px;
+	font-size: var(--dsw-font-xs-13-font-size, 13px);
+	line-height: var(--dsw-font-xs-13-line-height, 20px);
+	color: var(--mcp-text-2);
+}
+
+.mcp-head-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.mcp-stats {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.mcp-stats-spacer {
+	flex: 1;
+}
+
+/* ── chips ───────────────────────────────────────────────────────────── */
+
+.mcp-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 22px;
+	padding: 0 8px;
+	border-radius: var(--mcp-radius-chip);
+	background: var(--mcp-surface);
+	color: var(--mcp-text-2);
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 1;
+	white-space: nowrap;
+}
+
+/* Status colour rides a dot, not the letters: the host palette's state colours are
+ * dot colours, and 12px text in them fails contrast on the card surfaces. */
+.mcp-chip--ok,
+.mcp-chip--warn,
+.mcp-chip--error {
+	color: var(--mcp-text);
+}
+.mcp-chip--ok::before,
+.mcp-chip--warn::before,
+.mcp-chip--error::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	flex: none;
+}
+.mcp-chip--ok {
+	background: rgba(34, 197, 94, 0.12);
+	background: color-mix(in srgb, var(--mcp-success) 12%, transparent);
+}
+.mcp-chip--ok::before {
+	background: var(--mcp-success);
+}
+.mcp-chip--warn {
+	background: rgba(245, 158, 11, 0.12);
+	background: color-mix(in srgb, var(--mcp-warn) 14%, transparent);
+}
+.mcp-chip--warn::before {
+	background: var(--mcp-warn);
+}
+.mcp-chip--error {
+	background: rgba(242, 90, 90, 0.12);
+	background: color-mix(in srgb, var(--mcp-danger) 12%, transparent);
+}
+.mcp-chip--error::before {
+	background: var(--mcp-danger);
+}
+.mcp-chip--off {
+	opacity: 0.75;
+}
+
+/* ── buttons ─────────────────────────────────────────────────────────── */
+
+.mcp-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	height: 32px;
+	padding: 0 12px;
+	border: 1px solid transparent;
+	border-radius: var(--mcp-radius-control);
+	background: transparent;
+	color: var(--mcp-text);
+	font: inherit;
+	font-size: var(--dsw-font-xs-13-font-size, 13px);
+	font-weight: 500;
+	line-height: 1;
+	cursor: pointer;
+	transition: background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.mcp-btn:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+
+.mcp-btn--primary {
+	background: var(--mcp-accent-fill);
+	color: var(--mcp-on-accent);
+}
+.mcp-btn--secondary {
+	border-color: var(--mcp-border-control);
+	background: transparent;
+	color: var(--mcp-text);
+}
+.mcp-btn--ghost {
+	color: var(--mcp-text-2);
+}
+.mcp-btn--danger {
+	color: var(--mcp-danger);
+}
+.mcp-btn--icon {
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	color: var(--mcp-text-2);
+}
+.mcp-btn--sm {
+	height: 28px;
+	padding: 0 9px;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+}
+.mcp-btn--icon.mcp-btn--sm {
+	width: 28px;
+	padding: 0;
+}
+
+.mcp-btn svg,
+.mcp-icon svg {
+	display: block;
+	flex: none;
+}
+
+@media (hover: hover) {
+	.mcp-btn--primary:hover:not(:disabled) {
+		background: var(--mcp-accent-fill-hover);
+	}
+	.mcp-btn--secondary:hover:not(:disabled) {
+		background: var(--mcp-surface-hover);
+	}
+	.mcp-btn--ghost:hover:not(:disabled),
+	.mcp-btn--icon:hover:not(:disabled) {
+		background: var(--mcp-surface-hover);
+		color: var(--mcp-text);
+	}
+	.mcp-btn--danger:hover:not(:disabled) {
+		background: var(--dsw-alias-interactive-bg-hover-danger, rgba(200, 67, 60, 0.12));
+	}
+}
+
+.mcp-btn:active:not(:disabled) {
+	transform: translateY(0.5px);
+}
+
+.mcp-btn:focus-visible,
+.mcp-icon-btn:focus-visible,
+.mcp-switch input:focus-visible + .mcp-switch-track {
+	outline: var(--mcp-focus-width) solid var(--mcp-focus);
+	outline-offset: 2px;
+}
+
+/* ── cards ───────────────────────────────────────────────────────────── */
+
+.mcp-list {
+	display: grid;
+	gap: 10px;
+}
+
+.mcp-card {
+	display: grid;
+	gap: 10px;
+	padding: 14px 16px;
+	border: 1px solid var(--mcp-border);
+	border-radius: var(--mcp-radius-card);
+	background: var(--mcp-card);
+}
+
+.mcp-card--off {
+	background: transparent;
+}
+
+.mcp-card-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.mcp-status {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex: none;
+	background: var(--mcp-idle);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--mcp-idle) 18%, transparent);
+}
+.mcp-status[data-state="ready"] {
+	background: var(--mcp-success);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--mcp-success) 18%, transparent);
+}
+.mcp-status[data-state="connecting"],
+.mcp-status[data-state="refreshing"],
+.mcp-status[data-state="reconnecting"],
+.mcp-status[data-state="needs_auth"] {
+	background: var(--mcp-warn);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--mcp-warn) 18%, transparent);
+}
+.mcp-status[data-state="error"] {
+	background: var(--mcp-danger);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--mcp-danger) 18%, transparent);
+}
+
+.mcp-card-name {
+	margin: 0;
+	font-size: var(--dsw-font-s-14-font-size, 14px);
+	line-height: var(--dsw-font-s-14-line-height, 22px);
+	font-weight: 600;
+	color: var(--mcp-text);
+	overflow-wrap: anywhere;
+}
+
+.mcp-card-status {
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	color: var(--mcp-text-2);
+}
+
+.mcp-card-tools {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-wrap: wrap;
+}
+
+.mcp-card-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	min-width: 0;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	color: var(--mcp-text-2);
+}
+
+.mcp-endpoint {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 100%;
+	min-width: 0;
+	padding: 2px 4px 2px 8px;
+	border-radius: var(--mcp-radius-control);
+	background: var(--mcp-surface);
+	color: var(--mcp-text-2);
+}
+
+.mcp-endpoint code {
+	font-family: var(--mcp-mono);
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 18px;
+	background: transparent;
+	padding: 0;
+	max-width: 46ch;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.mcp-meta-sep {
+	color: var(--mcp-text-3);
+}
+
+.mcp-note {
+	margin: 0;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 18px;
+	color: var(--mcp-text-2);
+	overflow-wrap: anywhere;
+}
+
+.mcp-alert {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 7px 10px;
+	border-radius: var(--mcp-radius-control);
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 18px;
+	overflow-wrap: anywhere;
+	background: rgba(242, 90, 90, 0.1);
+	background: color-mix(in srgb, var(--mcp-danger) 10%, transparent);
+	color: var(--mcp-text);
+}
+.mcp-alert::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	margin-top: 6px;
+	border-radius: 50%;
+	flex: none;
+	background: var(--mcp-danger);
+}
+.mcp-alert--ok {
+	background: rgba(34, 197, 94, 0.1);
+	background: color-mix(in srgb, var(--mcp-success) 10%, transparent);
+	color: var(--mcp-text);
+}
+.mcp-alert--ok::before {
+	background: var(--mcp-success);
+}
+.mcp-alert--muted {
+	background: var(--mcp-surface);
+	color: var(--mcp-text-2);
+}
+.mcp-alert--muted::before {
+	background: var(--mcp-idle);
+}
+
+.mcp-alert .mcp-btn {
+	flex: none;
+}
+
+.mcp-card-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.mcp-card-actions-spacer {
+	flex: 1;
+}
+
+/* ── switch ──────────────────────────────────────────────────────────── */
+
+.mcp-switch--icon {
+	margin-left: 6px;
+}
+
+.mcp-switch {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	color: var(--mcp-text-2);
+	cursor: pointer;
+	user-select: none;
+}
+
+.mcp-switch input {
+	position: absolute;
+	opacity: 0;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	pointer-events: none;
+}
+
+.mcp-switch-track {
+	position: relative;
+	width: 34px;
+	height: 20px;
+	flex: none;
+	border-radius: 999px;
+	background: var(--mcp-border-strong);
+	transition: background-color 0.14s ease;
+}
+
+.mcp-switch-thumb {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: var(--mcp-thumb);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+	transition: transform 0.14s ease;
+}
+
+.mcp-switch input:checked + .mcp-switch-track {
+	background: var(--mcp-accent-fill);
+}
+
+.mcp-switch input:checked + .mcp-switch-track .mcp-switch-thumb {
+	transform: translateX(14px);
+}
+
+.mcp-switch input:disabled + .mcp-switch-track {
+	opacity: 0.45;
+}
+
+/* ── overflow menu ───────────────────────────────────────────────────── */
+
+.mcp-menu {
+	position: relative;
+}
+
+.mcp-menu > summary {
+	list-style: none;
+}
+
+.mcp-menu > summary::-webkit-details-marker {
+	display: none;
+}
+
+.mcp-menu-pop {
+	position: absolute;
+	right: 0;
+	top: calc(100% + 6px);
+	z-index: 20;
+	min-width: 190px;
+	padding: 4px;
+	border: 1px solid var(--mcp-border);
+	border-radius: var(--mcp-radius-card);
+	background: var(--mcp-menu);
+	box-shadow: var(--mcp-shadow);
+	backdrop-filter: var(--dsw-menu-backdrop-filter, blur(12px));
+}
+
+.mcp-menu-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 8px 10px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--mcp-text);
+	font: inherit;
+	font-size: var(--dsw-font-xs-13-font-size, 13px);
+	text-align: left;
+	cursor: pointer;
+}
+
+.mcp-menu-item:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+
+.mcp-menu-item:focus-visible {
+	outline: var(--mcp-focus-width) solid var(--mcp-focus);
+	outline-offset: -2px;
+}
+
+.mcp-menu-item--danger {
+	color: var(--mcp-danger);
+}
+
+@media (hover: hover) {
+	.mcp-menu-item:hover:not(:disabled) {
+		background: var(--mcp-surface-hover);
+	}
+}
+
+/* ── editor and import ───────────────────────────────────────────────── */
+
+.mcp-editor {
+	border: 1px solid var(--mcp-border-strong);
+	border-radius: var(--mcp-radius-card);
+	background: var(--mcp-card);
+}
+
+.mcp-editor-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--mcp-border);
+}
+
+.mcp-editor-title {
+	margin: 0;
+	font-size: var(--dsw-font-s-14-font-size, 14px);
+	line-height: 22px;
+	font-weight: 600;
+}
+
+.mcp-editor-body {
+	display: grid;
+	gap: 18px;
+	padding: 16px;
+}
+
+.mcp-group {
+	display: grid;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	min-width: 0;
+}
+
+.mcp-group + .mcp-group {
+	padding-top: 16px;
+	border-top: 1px solid var(--mcp-border);
+}
+
+.mcp-group-title {
+	padding: 0;
+	margin: 0 0 2px;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	font-weight: 600;
+	color: var(--mcp-text-2);
+}
+
+.mcp-grid-2 {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px;
+}
+
+.mcp-stack {
+	display: grid;
+	gap: 10px;
+}
+
+.mcp-field {
+	display: grid;
+	gap: 5px;
+	min-width: 0;
+}
+
+.mcp-label {
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 16px;
+	color: var(--mcp-text-2);
+}
+
+.mcp-input,
+.mcp-textarea,
+.mcp-select {
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 34px;
+	padding: 6px 10px;
+	border: 1px solid var(--mcp-border-control);
+	border-radius: var(--mcp-radius-control);
+	background: transparent;
+	color: var(--mcp-text);
+	font: inherit;
+	font-size: var(--dsw-font-xs-13-font-size, 13px);
+	line-height: 20px;
+}
+
+.mcp-input::placeholder,
+.mcp-textarea::placeholder {
+	color: var(--mcp-text-2);
+}
+
+.mcp-textarea {
+	min-height: 96px;
+	padding: 8px 10px;
+	resize: vertical;
+	font-family: var(--mcp-mono);
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 18px;
+}
+
+.mcp-select {
+	appearance: none;
+	padding-right: 30px;
+	cursor: pointer;
+}
+
+/* Without an explicit fill the open list keeps the platform's white surface while the
+ * option text follows the theme — a white list with white labels in the dark theme. */
+.mcp-select option {
+	background-color: var(--mcp-popup);
+	color: var(--mcp-text);
+}
+
+.mcp-select-wrap {
+	position: relative;
+}
+
+.mcp-select-wrap::after {
+	content: "";
+	position: absolute;
+	right: 11px;
+	top: 50%;
+	width: 6px;
+	height: 6px;
+	border-right: 1.5px solid var(--mcp-text-2);
+	border-bottom: 1.5px solid var(--mcp-text-2);
+	transform: translateY(-70%) rotate(45deg);
+	pointer-events: none;
+}
+
+.mcp-input:focus-visible,
+.mcp-textarea:focus-visible,
+.mcp-select:focus-visible {
+	outline: var(--mcp-focus-width) solid var(--mcp-focus);
+	outline-offset: 1px;
+	border-color: transparent;
+}
+
+.mcp-check {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 18px;
+	color: var(--mcp-text-2);
+	cursor: pointer;
+}
+
+.mcp-check input {
+	margin: 2px 0 0;
+	accent-color: var(--mcp-accent-fill);
+}
+
+.mcp-params {
+	display: grid;
+	gap: 6px;
+}
+
+.mcp-param {
+	display: grid;
+	grid-template-columns: 96px minmax(120px, 1fr) minmax(120px, 1fr) auto;
+	gap: 6px;
+	align-items: center;
+}
+
+.mcp-hint {
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 18px;
+	color: var(--mcp-text-2);
+	overflow-wrap: anywhere;
+}
+
+.mcp-editor > .mcp-alert {
+	margin: 0 16px 12px;
+}
+
+.mcp-editor-foot {
+	position: sticky;
+	bottom: 0;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	padding: 12px 16px;
+	border-top: 1px solid var(--mcp-border);
+	background: var(--mcp-card);
+}
+
+.mcp-editor-foot .mcp-hint {
+	flex: 1 1 220px;
+	margin-right: auto;
+}
+
+/* ── empty and loading states ────────────────────────────────────────── */
+
+.mcp-empty {
+	display: grid;
+	justify-items: center;
+	gap: 10px;
+	padding: 36px 20px;
+	border: 1px dashed var(--mcp-border-strong);
+	border-radius: var(--mcp-radius-card);
+	text-align: center;
+}
+
+.mcp-empty-icon {
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	border-radius: var(--mcp-radius-card);
+	background: var(--mcp-surface);
+	color: var(--mcp-accent);
+}
+
+.mcp-empty-title {
+	margin: 0;
+	font-size: var(--dsw-font-s-14-font-size, 14px);
+	line-height: 22px;
+	font-weight: 600;
+}
+
+.mcp-empty-text {
+	margin: 0;
+	max-width: 420px;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 18px;
+	color: var(--mcp-text-2);
+}
+
+.mcp-empty-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	justify-content: center;
+	margin-top: 4px;
+}
+
+.mcp-skeleton-card {
+	display: grid;
+	gap: 10px;
+	padding: 14px 16px;
+	border: 1px solid var(--mcp-border);
+	border-radius: var(--mcp-radius-card);
+}
+
+.mcp-skeleton-line {
+	height: 12px;
+	border-radius: 6px;
+	background: var(--mcp-surface);
+	animation: mcp-pulse 1.6s ease-in-out infinite;
+}
+
+.mcp-skeleton-line--title {
+	width: 30%;
+	height: 14px;
+}
+.mcp-skeleton-line--wide {
+	width: 68%;
+}
+.mcp-skeleton-line--short {
+	width: 42%;
+}
+
+.mcp-spinner {
+	display: block;
+	animation: mcp-spin 0.9s linear infinite;
+}
+
+@keyframes mcp-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes mcp-pulse {
+	0%,
+	100% {
+		opacity: 0.55;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
+/* ── page footer ─────────────────────────────────────────────────────── */
+
+.mcp-foot {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	color: var(--mcp-text-3);
+}
+
+.mcp-foot code {
+	font-family: var(--mcp-mono);
+	font-size: 11px;
+	overflow-wrap: anywhere;
+}
+
+/* ── workbench ───────────────────────────────────────────────────────── */
+
+.mcp-workbench {
+	display: grid;
+	gap: 8px;
+	height: 100%;
+	padding: 10px;
+	box-sizing: border-box;
+	overflow: auto;
+}
+
+.mcp-workbench-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	padding: 0 4px;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	color: var(--mcp-text-2);
+}
+
+.mcp-workbench-title {
+	color: var(--mcp-text);
+	font-weight: 600;
+}
+
+.mcp-frame {
+	border: 1px solid var(--mcp-border);
+	border-radius: var(--mcp-radius-card);
+	overflow: hidden;
+	background: transparent;
+}
+
+.mcp-frame iframe {
+	display: block;
+	width: 100%;
+	border: 0;
+	background: transparent;
+}
+
+.mcp-iframe-note {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	padding: 8px 10px;
+	border-radius: var(--mcp-radius-control);
+	background: var(--mcp-surface);
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 18px;
+	color: var(--mcp-text-2);
+}
+
+/* ── narrow screens ──────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+	.mcp-page {
+		padding: 16px 16px 0;
+		gap: 14px;
+	}
+	.mcp-page > :last-child {
+		margin-bottom: 32px;
+	}
+	.mcp-head {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 12px;
+	}
+	/* A row flex item's basis is a minimum width; a column's is a height. */
+	.mcp-head-text {
+		flex: 0 1 auto;
+		min-width: 0;
+	}
+	.mcp-head-actions {
+		flex: 0 0 auto;
+		justify-content: flex-start;
+	}
+	.mcp-head-actions .mcp-btn--primary {
+		flex: 1;
+	}
+	.mcp-endpoint code {
+		max-width: 100%;
+	}
+	.mcp-meta-sep,
+	.mcp-meta-time {
+		display: none;
+	}
+	.mcp-param {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+	.mcp-param .mcp-param-value {
+		grid-column: 1 / -1;
+	}
+	.mcp-editor-foot .mcp-hint {
+		flex-basis: 100%;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.mcp-btn,
+	.mcp-switch-track,
+	.mcp-switch-thumb {
+		transition: none;
+	}
+	.mcp-skeleton-line,
+	.mcp-spinner {
+		animation: none;
+	}
+}

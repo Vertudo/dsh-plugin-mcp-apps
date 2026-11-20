@@ -1,6 +1,7 @@
 {
   "meta": {
     "title": "MCP-подключения",
-    "description": "Подключение любых MCP-серверов (HTTP/SSE/stdio) с авторизацией токеном или OAuth 2.0, включение и выключение, импорт servers.json; инструменты с ресурсом ui:// открываются в рабочей области MCP Apps справа."
+    "description": "Серверы MCP по HTTP, SSE и stdio: токен или OAuth 2.0, включение и выключение, импорт servers.json.",
+    "detail": "docs/DETAIL.ru.md"
   }
 }

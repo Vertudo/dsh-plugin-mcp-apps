@@ -1,6 +1,7 @@
 {
   "meta": {
-    "title": "MCP Connector",
-    "description": "Connect any MCP server (HTTP/SSE/stdio) with token or OAuth 2.0 authorization, enable or disable it, import servers.json; tools with ui:// resources render in the MCP Apps workbench on the right."
+    "title": "MCP connections",
+    "description": "MCP servers over HTTP, SSE, and stdio with a token or OAuth 2.0; enable, disable, and import servers.json.",
+    "detail": "docs/DETAIL.md"
   }
 }

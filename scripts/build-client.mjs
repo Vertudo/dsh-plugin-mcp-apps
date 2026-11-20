@@ -26,6 +26,8 @@ const result = await build({
   write: false,
   target: 'es2022',
   external: ['react', 'react/jsx-runtime', 'react-dom', '@deepseek-ai/*'],
+  loader: { '.css': 'text' },
+  define: { __DSH_PLUGIN_VERSION__: JSON.stringify(pkg.version) },
   logLevel: 'warning',
 })
 

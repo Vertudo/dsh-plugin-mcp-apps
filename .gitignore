@@ -2,6 +2,13 @@
 node_modules/
 dist/
 *.log
+# pnpm store `dsh plugin add <path>` creates inside the bundle when the global one
+# cannot hard-link into the profile.
+.pnpm-store/
 
 # Local scratch output of the checks.
 .i18n-report.json
+
+# Local verification runs (temporary profile, screenshots).
+.scratch/
+browser-screenshots/
