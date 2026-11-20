@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-mcp-apps",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "MCP-подключения: панель управления MCP-серверами (HTTP/SSE/stdio, авторизация токеном или OAuth 2.0, импорт servers.json). Форк dsh-plugin-mcp-apps с модульной локализацией: ru, en, zh.",
   "type": "module",
   "main": "lib/index.js",
