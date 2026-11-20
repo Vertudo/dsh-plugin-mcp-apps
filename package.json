@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-mcp-apps",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "MCP-подключения: панель управления MCP-серверами (HTTP/SSE/stdio, авторизация токеном или OAuth 2.0, импорт servers.json). Форк dsh-plugin-mcp-apps с модульной локализацией: ru, en, zh.",
   "icon": "icon.svg",
   "type": "module",
@@ -29,12 +29,14 @@
     "lib/index.js",
     "lib/locales.js",
     "lib/oauth.js",
+    "lib/tool-access.js",
     "src/client.js",
     "src/i18n.js",
     "src/styles.css",
     "src/ui.js",
     "scripts/build-client.mjs",
     "scripts/check-artifacts.mjs",
+    "scripts/check-tool-access.mjs",
     "scripts/check-i18n.mjs",
     "scripts/install-remote.sh"
   ],
@@ -59,7 +61,7 @@
   "scripts": {
     "build": "node scripts/build-client.mjs",
     "i18n:check": "node scripts/check-i18n.mjs",
-    "check": "npm run i18n:check && npm run build && node scripts/check-artifacts.mjs"
+    "check": "npm run i18n:check && node scripts/check-tool-access.mjs && npm run build && node scripts/check-artifacts.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.5",

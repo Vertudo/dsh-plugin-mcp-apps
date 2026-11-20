@@ -773,6 +773,175 @@
 	margin-right: auto;
 }
 
+/* ── tool catalog card ───────────────────────────────────────────────── */
+
+.mcp-editor-heading {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.mcp-tools-subject {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	color: var(--mcp-text-2);
+}
+
+/* The status belongs to the right edge, next to the close button; the heading block keeps
+ * the left edge. */
+.mcp-tools .mcp-card-status {
+	margin-left: auto;
+	white-space: nowrap;
+}
+
+/* The tool-count chip is a real control: it opens the catalog card. */
+.mcp-chip--action {
+	border: 1px solid transparent;
+	background: var(--mcp-surface);
+	color: var(--mcp-text-2);
+	font-family: inherit;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	cursor: pointer;
+	transition: background-color 120ms ease, color 120ms ease;
+}
+.mcp-chip--action:hover {
+	background: var(--mcp-surface-hover);
+	color: var(--mcp-text);
+}
+.mcp-chip--action:focus-visible {
+	outline: var(--mcp-focus-width) solid var(--mcp-focus);
+	outline-offset: 2px;
+}
+
+.mcp-tools-summary {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.mcp-tools-search {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.mcp-tools-search .mcp-input {
+	flex: 1;
+	min-width: 0;
+}
+
+.mcp-tools-groups {
+	display: grid;
+	gap: 18px;
+}
+
+.mcp-tool-group {
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+}
+
+.mcp-tool-group-title {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	padding: 0 0 4px;
+	border-bottom: 1px solid var(--mcp-border);
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	font-weight: 600;
+	color: var(--mcp-text-2);
+}
+
+.mcp-tool-group-count {
+	padding: 0 6px;
+	border-radius: 999px;
+	background: var(--mcp-surface);
+	color: var(--mcp-text-3);
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+}
+
+.mcp-tool-list {
+	display: grid;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.mcp-tool {
+	padding: 8px;
+	border-radius: var(--mcp-radius-control);
+}
+.mcp-tool:hover {
+	background: var(--mcp-surface);
+}
+
+.mcp-tool-line {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	min-width: 0;
+}
+
+.mcp-tool-name {
+	font-family: var(--mcp-mono);
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	color: var(--mcp-text);
+	overflow-wrap: anywhere;
+}
+
+.mcp-tool-title {
+	margin: 2px 0 0;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	color: var(--mcp-text);
+}
+
+/* Three lines is enough to recognise a tool; the full text stays in the DOM and in the
+ * native tooltip, so nothing is lost for a screen reader or for search. */
+.mcp-tool-desc {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+	line-clamp: 3;
+	overflow: hidden;
+	margin: 2px 0 0;
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+	line-height: 1.45;
+	color: var(--mcp-text-2);
+	overflow-wrap: anywhere;
+}
+
+.mcp-tool-copy {
+	flex: none;
+	margin-left: auto;
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+.mcp-tool:hover .mcp-tool-copy,
+.mcp-tool:focus-within .mcp-tool-copy {
+	opacity: 1;
+}
+@media (hover: none) {
+	.mcp-tool-copy {
+		opacity: 1;
+	}
+}
+
+.mcp-tools-more {
+	justify-self: start;
+}
+
+.mcp-tools-empty {
+	margin: 0;
+	padding: 12px 0;
+	color: var(--mcp-text-2);
+	font-size: var(--dsw-font-xxs-12-font-size, 12px);
+}
+
 /* ── empty and loading states ────────────────────────────────────────── */
 
 .mcp-empty {

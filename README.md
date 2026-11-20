@@ -7,6 +7,7 @@ A general MCP connector plus an MCP Apps workbench, forked from `xiaoqin422/dsh-
 - **Authorization**: none; API parameters (`header` / `query` / `body`, any number per connection, values echoed as `••••` and kept when the field stays empty); OAuth 2.0 (authorization code + PKCE) with client registration by DCR, CIMD or a hand-entered `client_id`/`client_secret`.
 - **Workbench**: a tool that declares a `ui://` resource renders its MCP App in the right-hand pane; a disabled connection exposes no tools to the model.
 - **Reconnect** on a card re-reads the tool list (`POST /api/mcp-apps/connections/<id>/refresh`); a server that sends `notifications/tools/list_changed` updates it on its own, and a dropped connection reconnects with a growing delay. The model sees the refreshed list from its next message: the tool snapshot is taken when a turn starts.
+- The tool-count button opens the **Tools** card: everything the server declares, split into **Read-only tools** and **Write/delete tools**, each with a description, plus search. The split comes from the MCP annotations (`readOnlyHint`, `destructiveHint`); where the server sends none it comes from the tool name, and a tool that fits neither side stays under **Not determined**. Until the server returns a list there is no button: there would be nothing to show.
 
 ## Interface
 
@@ -15,7 +16,7 @@ A general MCP connector plus an MCP Apps workbench, forked from `xiaoqin422/dsh-
 The panel is built on public DSH theme tokens, so it follows the light and dark scheme, the active look, and the text size:
 
 - the header summarises the list: connections, active ones, tools, and failures;
-- a card carries the state dot, transport, tool count, OAuth state, the address with a copy button, and the "expose tools to the model" switch; **Edit**, **Test**, and **Reconnect** sit next to it, while deletion and an authorization reset live in the "…" menu;
+- a card carries the state dot, transport, a tool-count button that opens the tool list, OAuth state, the address with a copy button, and the "expose tools to the model" switch; **Edit**, **Test**, and **Reconnect** sit next to it, while deletion and an authorization reset live in the "…" menu;
 - the editor is split into **Connection**, **Authorization**, and **Options**, with the buttons pinned to the bottom; **Test** saves what you typed and tries to connect;
 - the empty list offers two ways to start, and the first state read shows skeleton rows.
 

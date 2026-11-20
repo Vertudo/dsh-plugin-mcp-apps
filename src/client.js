@@ -598,6 +598,8 @@ function ConnectionCard(props) {
 		}
 	};
 	const status = connection.status || (connection.enabled ? "connecting" : "disabled");
+	/** The last catalog the host holds, whatever the current status is: a stale list is still worth reading. */
+	const toolTotal = (connection.tools || []).length;
 	const oauthMode = connection.auth && connection.auth.mode === "oauth";
 	const authorized = !!(connection.auth && connection.auth.oauth && connection.auth.oauth.authorized);
 	const authorize = async () => {
@@ -639,7 +641,14 @@ function ConnectionCard(props) {
 			h("span", { className: "mcp-status", "data-state": status, "aria-hidden": true }),
 			h("h2", { className: "mcp-card-name" }, connection.name),
 			h("span", { className: "mcp-chip" }, transportLabel(connection.transport)),
-			connection.enabled && connection.status === "ready" ? h("span", { className: "mcp-chip" }, tr("card.tools", { count: connection.toolCount })) : null,
+			toolTotal > 0
+				? h(
+					"button",
+					{ type: "button", className: "mcp-chip mcp-chip--action", title: tr("tools.title"), onClick: () => props.onTools(connection) },
+					tr("card.tools", { count: toolTotal }),
+					h(Glyph, { name: "chevron" })
+				)
+				: null,
 			oauthMode ? h("span", { className: authorized ? "mcp-chip mcp-chip--ok" : "mcp-chip mcp-chip--warn" }, authorized ? tr("card.auth.authorized") : tr("card.auth.unauthorized")) : null,
 			h("span", { className: "mcp-card-status" }, statusText(status)),
 			h(
@@ -769,6 +778,219 @@ function ConnectionCard(props) {
 	);
 }
 
+/** Tools rendered per group before the list folds behind "Show all". */
+const GROUP_PAGE = 50;
+/** A plain list shorter than this still fits on one screen, so search stays out of the way. */
+const SEARCH_FROM = 8;
+
+/** One catalog row: the name the server uses, its optional title, description and badges. */
+function ToolRow(props) {
+	const tool = props.tool;
+	const description = tool.description || "";
+	return h(
+		"li",
+		{ className: "mcp-tool" },
+		h(
+			"div",
+			{ className: "mcp-tool-line" },
+			h("code", { className: "mcp-tool-name" }, tool.name),
+			tool.destructive ? h("span", { className: "mcp-chip mcp-chip--warn" }, tr("tools.destructive")) : null,
+			tool.resourceUri ? h("span", { className: "mcp-chip" }, "ui://") : null,
+			h("span", { className: "mcp-tool-copy" }, h(CopyButton, { value: props.publicName, label: tr("tools.copyName"), copiedLabel: tr("card.copied") }))
+		),
+		tool.title ? h("p", { className: "mcp-tool-title" }, tool.title) : null,
+		description ? h("p", { className: "mcp-tool-desc", title: description.length > 220 ? description : undefined }, description) : null
+	);
+}
+
+/**
+ * The tool catalog of one connection, in its own card above the list.
+ *
+ * The access side comes from the host (`access`), so this component never guesses: it groups
+ * what it was given, keeps tools nobody could classify under "Not determined" instead of
+ * filing them under the wrong side, and says at the bottom whether the groups rest on the
+ * server's annotations or on the name fallback. The list is the host's current catalog: the
+ * connection card only offers this view while that catalog exists, and a refresh keeps it on
+ * screen instead of blanking it.
+ */
+function ToolsCard(props) {
+	const connection = props.connection;
+	const tools = connection.tools || [];
+	const status = connection.status || (connection.enabled ? "connecting" : "disabled");
+	const [query, setQuery] = React.useState("");
+	/** Per group: the whole list instead of its first page. */
+	const [showAll, setShowAll] = React.useState({});
+	const [busy, setBusy] = React.useState(false);
+	const [error, setError] = React.useState("");
+	const searchRef = React.useRef(null);
+
+	React.useEffect(() => {
+		const onKey = (event) => {
+			if (event.key === "Escape") props.onClose();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [props.onClose]);
+
+	React.useEffect(() => {
+		if (searchRef.current) searchRef.current.focus();
+	}, []);
+
+	const needle = query.trim().toLowerCase();
+	const matches = (tool) =>
+		needle === "" || [tool.name, tool.title, tool.description].some((value) => String(value || "").toLowerCase().includes(needle));
+
+	const grouped = { read: [], write: [], unknown: [] };
+	for (const tool of tools) (grouped[tool.access] || grouped.unknown).push(tool);
+	for (const list of Object.values(grouped)) list.sort((left, right) => String(left.name).localeCompare(String(right.name)));
+
+	const refresh = async () => {
+		setBusy(true);
+		setError("");
+		try {
+			await api("/connections/" + encodeURIComponent(connection.id) + "/refresh", { method: "POST", body: "{}" });
+			await refreshState();
+		} catch (failure) {
+			setError(failure.message || String(failure));
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	/** Why the catalog is missing or old, in one line; empty when it is current. */
+	const staleLine = () => {
+		if (status === "disabled") return tr("tools.disabled");
+		if (status === "reconnecting") return tr("tools.reconnecting");
+		if (status === "connecting" || status === "refreshing") return tr("tools.connecting");
+		if (status === "error") return tr("tools.error.empty");
+		if (status === "needs_auth") return tr("tools.auth");
+		return "";
+	};
+
+	/** What to show instead of the list when the host holds no catalog at all. */
+	const emptyLine = () => {
+		if (status === "disabled") return tr("tools.disabled.empty");
+		if (status === "reconnecting") return tr("tools.reconnecting");
+		if (status === "connecting" || status === "refreshing") return tr("tools.connecting");
+		if (status === "needs_auth") return tr("tools.auth");
+		if (status === "error") return tr("tools.error.empty");
+		if (connection.lastListedAt) return tr("tools.none");
+		return tr("tools.neverListed");
+	};
+
+	const annotated = tools.filter((tool) => tool.accessSource === "annotation").length;
+	const sourceNote = annotated === tools.length ? tr("tools.source.annotation") : annotated === 0 ? tr("tools.source.heuristic") : tr("tools.source.mixed");
+	const visible = tools.filter(matches);
+
+	const renderGroup = (key) => {
+		const list = grouped[key].filter(matches);
+		if (list.length === 0) return null;
+		const shown = showAll[key] ? list : list.slice(0, GROUP_PAGE);
+		const headingId = "mcp-tool-group-" + key;
+		return h(
+			"section",
+			{ key, className: "mcp-tool-group", "aria-labelledby": headingId },
+			h(
+				"h3",
+				{ className: "mcp-tool-group-title", id: headingId },
+				tr("tools.group." + key),
+				" ",
+				h("span", { className: "mcp-tool-group-count" }, list.length)
+			),
+			h(
+				"ul",
+				{ className: "mcp-tool-list" },
+				shown.map((tool) => h(ToolRow, { key: tool.name, tool, publicName: publicToolName(connection.id, tool.name) }))
+			),
+			list.length > shown.length
+				? h(
+					"button",
+					{ type: "button", className: "mcp-btn mcp-btn--ghost mcp-btn--sm mcp-tools-more", onClick: () => setShowAll((current) => ({ ...current, [key]: true })) },
+					tr("tools.showAll")
+				)
+				: null
+		);
+	};
+
+	return h(
+		"section",
+		{ className: "mcp-editor mcp-tools", "aria-labelledby": "mcp-tools-title" },
+		h(
+			"header",
+			{ className: "mcp-editor-head" },
+			h(
+				"div",
+				{ className: "mcp-editor-heading" },
+				h("h2", { className: "mcp-editor-title", id: "mcp-tools-title" }, tr("tools.title")),
+				h("span", { className: "mcp-tools-subject", title: connection.name }, connection.name)
+			),
+			h("span", { className: "mcp-card-status" }, statusText(status)),
+			h(
+				"button",
+				{ type: "button", className: "mcp-btn mcp-btn--icon mcp-btn--sm", title: tr("common.close"), "aria-label": tr("common.close"), onClick: props.onClose },
+				h(Glyph, { name: "close" })
+			)
+		),
+		h(
+			"div",
+			{ className: "mcp-editor-body" },
+			tools.length > 0
+				? h(
+					"div",
+					{ className: "mcp-tools-summary" },
+					["read", "write", "unknown"]
+						.filter((key) => grouped[key].length > 0)
+						.map((key) => h("span", { key, className: "mcp-chip" }, tr("tools.group." + key) + " · " + grouped[key].length))
+				)
+				: null,
+			tools.length >= SEARCH_FROM
+				? h(
+					"div",
+					{ className: "mcp-tools-search" },
+					h("input", {
+						ref: searchRef,
+						className: "mcp-input",
+						type: "text",
+						value: query,
+						placeholder: tr("tools.search"),
+						"aria-label": tr("tools.search"),
+						onChange: (event) => setQuery(event.target.value)
+					}),
+					query === ""
+						? null
+						: h(
+							"button",
+							{ type: "button", className: "mcp-btn mcp-btn--icon mcp-btn--sm", title: tr("tools.search.clear"), "aria-label": tr("tools.search.clear"), onClick: () => setQuery("") },
+							h(Glyph, { name: "close" })
+						)
+				)
+				: null,
+			tools.length === 0
+				? h("p", { className: "mcp-tools-empty" }, emptyLine())
+				: visible.length === 0
+					? h("p", { className: "mcp-tools-empty" }, tr("tools.search.empty"))
+					: h("div", { className: "mcp-tools-groups" }, ["read", "write", "unknown"].map(renderGroup)),
+			tools.length > 0 ? h("p", { className: "mcp-hint" }, sourceNote) : null,
+			connection.toolsTruncated ? h("p", { className: "mcp-hint" }, tr("tools.truncated", { max: tools.length })) : null,
+			tools.length > 0 && staleLine() !== "" ? h("p", { className: "mcp-hint" }, staleLine()) : null,
+			error ? h("div", { className: "mcp-alert", role: "alert" }, error) : null
+		),
+		h(
+			"footer",
+			{ className: "mcp-editor-foot" },
+			connection.lastListedAt
+				? h("span", { className: "mcp-hint" }, tr("card.listedAt", { time: new Date(connection.lastListedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }))
+				: null,
+			h(
+				"button",
+				{ type: "button", className: "mcp-btn mcp-btn--secondary mcp-btn--sm", style: { marginLeft: "auto" }, disabled: busy || !connection.enabled, onClick: () => void refresh() },
+				busy ? h(Spinner) : h(Glyph, { name: "refresh" }),
+				tr("card.refresh")
+			)
+		)
+	);
+}
+
 /** Placeholder rows shown while the first state read is in flight. */
 function LoadingCards() {
 	return h(
@@ -847,6 +1069,8 @@ function ConnectAppsPage() {
 	const [editing, setEditing] = React.useState(null);
 	const [creating, setCreating] = React.useState(false);
 	const [importing, setImporting] = React.useState(false);
+	/** Connection id whose catalog card is open; the id survives a state refresh, the object does not. */
+	const [toolsFor, setToolsFor] = React.useState(null);
 	const [importText, setImportText] = React.useState("");
 	const [importError, setImportError] = React.useState("");
 	const [busy, setBusy] = React.useState(false);
@@ -869,6 +1093,7 @@ function ConnectAppsPage() {
 		setEditing(target);
 		setCreating(!target);
 		setImporting(false);
+		setToolsFor(null);
 	};
 
 	/** The import card follows the same rule: it opens above whatever was on screen. */
@@ -877,6 +1102,16 @@ function ConnectAppsPage() {
 		setImporting(true);
 		setCreating(false);
 		setEditing(null);
+		setToolsFor(null);
+	};
+
+	/** The catalog card is one of the cards that opens above the list, never beside it. */
+	const openTools = (target) => {
+		scrollToTop();
+		setToolsFor(target.id);
+		setEditing(null);
+		setCreating(false);
+		setImporting(false);
 	};
 
 	const doImport = async () => {
@@ -895,6 +1130,8 @@ function ConnectAppsPage() {
 	};
 
 	const connections = view.connections;
+	/** A deleted connection closes the catalog card by itself: the id stops resolving. */
+	const toolsConnection = toolsFor === null ? null : connections.find((connection) => connection.id === toolsFor) || null;
 	const workingCount = connections.filter((connection) => connection.enabled && connection.status === "ready").length;
 	const errorCount = connections.filter((connection) => connection.status === "error").length;
 	const toolCount = connections.reduce((total, connection) => total + (connection.enabled ? connection.toolCount || 0 : 0), 0);
@@ -952,6 +1189,7 @@ function ConnectAppsPage() {
 			: null,
 		creating ? h(ConnectionEditor, { key: "new", onDone: () => setCreating(false) }) : null,
 		editing ? h(ConnectionEditor, { key: editing.id, connection: editing, onDone: () => setEditing(null) }) : null,
+		toolsConnection ? h(ToolsCard, { key: toolsConnection.id, connection: toolsConnection, onClose: () => setToolsFor(null) }) : null,
 		view.error
 			? null
 			: view.loading
@@ -961,7 +1199,7 @@ function ConnectAppsPage() {
 					: h(
 							"div",
 							{ className: "mcp-list" },
-							connections.map((connection) => h(ConnectionCard, { key: connection.id, connection, onEdit: openEditor }))
+							connections.map((connection) => h(ConnectionCard, { key: connection.id, connection, onEdit: openEditor, onTools: openTools }))
 						),
 		view.storePath
 			? h(
