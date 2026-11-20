@@ -88,7 +88,7 @@ function publicToolName(connectionId, raw) {
 /** Public tool name -> connection + resource metadata, filled from `/state`. */
 const toolMeta = new Map();
 const subscribers = new Set();
-const state = { connections: [], loading: true, error: "", loadedAt: 0 };
+const state = { connections: [], loading: true, error: "", loadedAt: 0, storePath: "", homeSource: "" };
 
 function notify() {
 	for (const listener of subscribers) {
@@ -107,6 +107,8 @@ function refreshState() {
 	refreshing = api("/state")
 		.then((body) => {
 			state.connections = body.connections || [];
+			state.storePath = body.storePath || "";
+			state.homeSource = body.homeSource || "";
 			state.error = "";
 			state.loading = false;
 			state.loadedAt = Date.now();
@@ -597,7 +599,10 @@ function ConnectionCard(props) {
 				? h("span", null, tr("card.auth.params", { count: (connection.auth.params || []).filter((param) => param.hasValue).length }))
 				: connection.auth && connection.auth.mode === "oauth"
 					? h("span", null, "OAuth 2.0" + (connection.auth.clientMode === "cimd" ? " · " + tr("card.auth.cimd") : connection.auth.clientMode === "manual" ? " · " + tr("card.auth.manual") : "") + " · " + (connection.auth.oauth && connection.auth.oauth.authorized ? tr("card.auth.authorized") : tr("card.auth.unauthorized")) + (connection.auth.scopes ? " · " + connection.auth.scopes : ""))
-					: h("span", null, tr("editor.auth.none"))
+					: h("span", null, tr("editor.auth.none")),
+			connection.enabled && connection.lastListedAt
+				? h("span", null, tr("card.listedAt", { time: new Date(connection.lastListedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }))
+				: null
 		),
 		connection.note ? h("div", { style: { ...subtitle, lineHeight: "18px" } }, connection.note) : null,
 		error ? h("div", { style: errorText }, error) : null,
@@ -687,7 +692,10 @@ function ConnectAppsPage() {
 			"div",
 			null,
 			h("div", { style: { fontSize: "18px", fontWeight: 600 } }, panelTitle()),
-			h("div", { style: { ...subtitle, marginTop: "4px", lineHeight: "18px" } }, tr("panel.intro"))
+			h("div", { style: { ...subtitle, marginTop: "4px", lineHeight: "18px" } }, tr("panel.intro")),
+			view.storePath !== ""
+				? h("div", { style: { ...subtitle, marginTop: "4px", fontFamily: monoStyle.fontFamily, wordBreak: "break-all" } }, tr("panel.store", { path: view.storePath }))
+				: null
 		),
 		h(
 			"div",
