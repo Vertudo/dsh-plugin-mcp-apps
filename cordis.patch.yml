@@ -6,4 +6,4 @@
 # as the browser half (the renderer itself).
 - insert:
     - id: dsh-plugin-mcp-apps
-      name: dsh-plugin-mcp-apps
+      name: '@dkasparov/dsh-plugin-mcp-apps'

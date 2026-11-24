@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0
+
+- Renamed to `@dkasparov/dsh-plugin-mcp-apps` and published to npm: the unscoped name belongs to the upstream release. A bundle installed from Git under the old name has to be removed and added again — the profile lists the package by name.
+- The loader row keeps the id `dsh-plugin-mcp-apps` and the panel keeps its own tab keys, so row configuration written for earlier releases stays valid.
+
 ## 0.9.1
 
 - Declares the DSH releases it supports in `engines.dsh` (`>= 0.2.2 < 0.3.0`): installation and profile start refuse an incompatible DSH instead of loading the plugin into it.

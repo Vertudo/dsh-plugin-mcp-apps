@@ -1,10 +1,10 @@
 #!/bin/sh
-# Install dsh-plugin-mcp-apps on another machine, from npm, a git URL or a tarball.
+# Install @dkasparov/dsh-plugin-mcp-apps on another machine, from npm, a git URL or a tarball.
 #
 #   sh scripts/install-remote.sh                            # npm, profile web
-#   sh scripts/install-remote.sh dsh-plugin-mcp-apps web
+#   sh scripts/install-remote.sh @dkasparov/dsh-plugin-mcp-apps web
 #   sh scripts/install-remote.sh https://github.com/Vertudo/dsh-plugin-mcp-apps web
-#   sh scripts/install-remote.sh ./dsh-plugin-mcp-apps-0.6.0.tgz web
+#   sh scripts/install-remote.sh ./dkasparov-dsh-plugin-mcp-apps-0.10.0.tgz web
 #
 # Needs a DSH install (`dsh` on PATH). Does the same three things as
 # scripts/install.sh: pnpm add through the official forwarder, register the
@@ -12,11 +12,11 @@
 # plugin cannot be composed twice. Restart dsh yourself afterwards.
 set -eu
 
-SPEC=${1:-dsh-plugin-mcp-apps}
+SPEC=${1:-@dkasparov/dsh-plugin-mcp-apps}
 PROFILE=${2:-${DSH_PROFILE:-web}}
 DSH_HOME=${DSH_HOME:-/data}
 PROFILE_DIR="$DSH_HOME/profiles/$PROFILE"
-PKG=dsh-plugin-mcp-apps
+PKG=@dkasparov/dsh-plugin-mcp-apps
 
 command -v dsh >/dev/null 2>&1 || { echo "dsh is not on PATH: install DSH first" >&2; exit 2; }
 if [ ! -f "$PROFILE_DIR/package.json" ]; then

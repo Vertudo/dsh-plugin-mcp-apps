@@ -65,12 +65,12 @@ The bundle has to stay one self-contained file: the browser module table resolve
 ## Install as a DSH plugin
 
 ```sh
-dsh plugin --profile desktop add https://github.com/Vertudo/dsh-plugin-mcp-apps
+dsh plugin --profile desktop add @dkasparov/dsh-plugin-mcp-apps
 ```
 
-Working from a local checkout, pass `link:<path to your checkout>` instead, or call `plugin_manager` with the same argument. A tarball works too: `npm pack`, then `sh scripts/install-remote.sh ./dsh-plugin-mcp-apps-<ver>.tgz <profile>`, restart DSH and hard-refresh the page.
+From Git, pass the repository address instead: `https://github.com/Vertudo/dsh-plugin-mcp-apps`. Working from a local checkout, pass `link:<path to your checkout>`, or call `plugin_manager` with the same argument. A tarball works too: `npm pack`, then `sh scripts/install-remote.sh ./dkasparov-dsh-plugin-mcp-apps-<ver>.tgz <profile>`, restart DSH and hard-refresh the page.
 
-The package installs from Git only: the npm name `dsh-plugin-mcp-apps` belongs to the upstream release (0.5.7). Updating means removing the bundle and adding it again — installing over an installed package reports `already-installed`.
+The unscoped npm name `dsh-plugin-mcp-apps` belongs to the upstream release (0.5.7), so the fork publishes as `@dkasparov/dsh-plugin-mcp-apps`. 0.10.0 renamed the package: a bundle installed from Git under the old name has to be removed and added again.
 
 Prerequisites: DSH `>= 0.2.2 < 0.3.0`, declared as `engines.dsh`, so an incompatible release is refused at installation and at profile start; the right-hand workbench needs `@deepseek-ai/dsh-client-ui-sidebar-right` (or any package providing `sidebarRight`) enabled. Without it the tool rows render inline and the plugin still loads.
 
@@ -97,6 +97,6 @@ The native MCP settings (`mcp-manager`) neither list nor restart these connectio
 
 ## Limits
 
-- Installed from Git only: the npm name belongs to the upstream release (`dsh-plugin-mcp-apps@0.5.7`), so both cannot be installed at once.
+- The unscoped npm name belongs to the upstream release (`dsh-plugin-mcp-apps@0.5.7`); the fork is published as `@dkasparov/dsh-plugin-mcp-apps`, and both cannot be installed at once.
 - `@modelcontextprotocol/client` is a peer dependency supplied by the DSH host; do not install it separately.
 - The prompt language comes from the last panel message: until the panel has been opened once in an installation, the host uses `en` (or `MCP_APPS_LOCALE` when set).
