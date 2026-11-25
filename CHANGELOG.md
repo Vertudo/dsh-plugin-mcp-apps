@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.1
+
+- OAuth: адрес возврата `/api/mcp-apps/oauth/callback` обслуживается до приёма запроса (middleware `webserver/request`), а не маршрутом. Маршрут отбивал переход от Keycloak ответом `403 forbidden` — у кросс-сайтовой навигации срабатывает проверка источника запроса, так что ни один вход через браузер не завершался. Порт и `redirect_uri` прежние: регистрацию клиента в Keycloak менять не нужно.
+- `client-metadata.json` по той же причине отдавал `401` серверу авторизации; теперь режим CIMD достижим.
+- Callback сверяет origin с `redirectBase` своей попытки, отбрасывает повторяющиеся `code`/`state`/`error`/`iss` и снимает `state` вместе с PKCE-верификатором после обмена. Страница ответа убирает `code` из адресной строки и отдаётся под CSP.
+- `scripts/check-oauth-surface.mjs` — новый гейт в `npm run check`: 13 групп случаев на поверхность callback.
+- `lib/oauth-endpoints.js` — пути, документ CIMD и вычисление origin вынесены из `oauth.js`, чтобы гейт не тянул peer-зависимость SDK.
+
 ## 0.10.0
 
 - Renamed to `@dkasparov/dsh-plugin-mcp-apps` and published to npm: the unscoped name belongs to the upstream release. A bundle installed from Git under the old name has to be removed and added again — the profile lists the package by name.
